@@ -1,0 +1,751 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../db/database_helper.dart';
+import '../../models/report_form_data.dart';
+import '../../widgets/step_indicator.dart';
+
+class LaporPage extends StatefulWidget {
+  const LaporPage({Key? key}) : super(key: key);
+
+  @override
+  _LaporPageState createState() => _LaporPageState();
+}
+
+class _LaporPageState extends State<LaporPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _reportData = ReportFormData();
+  int _currentStep = 1;
+  bool _isLoading = false;
+
+  // Controllers
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _addressController = TextEditingController();
+
+  // Data lists
+  List<Map<String, dynamic>> _provinces = [];
+  List<Map<String, dynamic>> _cities = [];
+  List<Map<String, dynamic>> _categories = [];
+  List<Map<String, dynamic>> _agencies = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    final provinces = await DatabaseHelper.instance.getAllProvinces();
+    final categories = await DatabaseHelper.instance.getAllCategories();
+    final agencies = await DatabaseHelper.instance.getAllAgencies();
+
+    if (mounted) {
+      setState(() {
+        _provinces = provinces;
+        _categories = categories;
+        _agencies = agencies;
+      });
+    }
+  }
+
+  Future<void> _loadCities(int provinceId) async {
+    final cities = await DatabaseHelper.instance.getCitiesByProvince(provinceId);
+    if (mounted) {
+      setState(() {
+        _cities = cities;
+        _reportData.cityId = null;
+      });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1800,
+      maxHeight: 1800,
+    );
+
+    if (pickedFile != null) {
+      final file = File(pickedFile.path);
+      final fileSize = await file.length();
+
+      if (fileSize > 5 * 1024 * 1024) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ukuran file maksimal 5MB')),
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        _reportData.imagePath = file.path;
+      });
+    }
+  }
+
+  Future<void> _submitReport() async {
+    if (!_reportData.isStep3Valid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Harap centang pernyataan kebenaran laporan')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final user = await DatabaseHelper.instance.getCurrentUser();
+      if (user == null) throw Exception('User tidak ditemukan');
+
+      await DatabaseHelper.instance.createReport(
+        userId: user['id'] as int,
+        title: _reportData.title!,
+        description: _reportData.description!,
+        provinceId: _reportData.provinceId!,
+        cityId: _reportData.cityId!,
+        address: _reportData.address!,
+        categoryId: _reportData.categoryId!,
+        agencyId: _reportData.agencyId!,
+        imagePath: _reportData.imagePath,
+        isAnonymous: _reportData.isAnonymous,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Laporan berhasil dibuat')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Widget _buildStep1() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Provinsi
+            const Text(
+              'Provinsi',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: DropdownButtonFormField<int>(
+                value: _reportData.provinceId,
+                decoration: const InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: InputBorder.none,
+                ),
+                hint: const Text('Pilih Provinsi'),
+                items: _provinces.map((province) {
+                  return DropdownMenuItem(
+                    value: province['id'] as int,
+                    child: Text(province['name'] as String),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _reportData.provinceId = value;
+                    if (value != null) {
+                      _loadCities(value);
+                    }
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Kota/Kabupaten
+            const Text(
+              'Kota/Kabupaten',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: DropdownButtonFormField<int>(
+                value: _reportData.cityId,
+                decoration: const InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: InputBorder.none,
+                ),
+                hint: const Text('Pilih Kota/Kabupaten'),
+                items: _cities.map((city) {
+                  return DropdownMenuItem(
+                    value: city['id'] as int,
+                    child: Text(city['name'] as String),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _reportData.cityId = value;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Alamat
+            const Text(
+              'Alamat',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _addressController,
+              decoration: InputDecoration(
+                hintText: 'Masukkan alamat lengkap',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+              ),
+              onChanged: (value) => _reportData.address = value,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Alamat tidak boleh kosong';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Judul Laporan
+            const Text(
+              'Judul Laporan',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                hintText: 'Masukkan judul laporan',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+              ),
+              onChanged: (value) => _reportData.title = value,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Judul tidak boleh kosong';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Deskripsi
+            const Text(
+              'Deskripsi',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _descriptionController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Masukkan deskripsi laporan',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+              ),
+              onChanged: (value) => _reportData.description = value,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Deskripsi tidak boleh kosong';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Upload Bukti
+            const Text(
+              'Unggah Bukti',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: _reportData.imagePath == null
+                  ? InkWell(
+                onTap: _pickImage,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(
+                      Icons.cloud_upload,
+                      size: 50,
+                      color: Color(0xFFD4A24C),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Klik untuk unggah gambar\n(Maks. 5MB)',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+                  : Stack(
+                children: [
+                  Image.file(
+                    File(_reportData.imagePath!),
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _reportData.imagePath = null;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Mode Pelaporan
+            Row(
+              children: [
+                Radio<bool>(
+                  value: false,
+                  groupValue: _reportData.isAnonymous,
+                  onChanged: (value) {
+                    setState(() {
+                      _reportData.isAnonymous = value!;
+                    });
+                  },
+                ),
+                const Text(
+                  'Publik',
+                  style: TextStyle(color: Colors.black),
+                ),
+                const SizedBox(width: 16),
+                Radio<bool>(
+                  value: true,
+                  groupValue: _reportData.isAnonymous,
+                  onChanged: (value) {
+                    setState(() {
+                      _reportData.isAnonymous = value!;
+                    });
+                  },
+                ),
+                const Text(
+                  'Anonim',
+                  style: TextStyle(color: Colors.black),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep2() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Kategori
+          const Text(
+            'Kategori Laporan',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: DropdownButtonFormField<int>(
+              value: _reportData.categoryId,
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: InputBorder.none,
+              ),
+              hint: const Text('Pilih Kategori'),
+              items: _categories.map((category) {
+                return DropdownMenuItem(
+                  value: category['id'] as int,
+                  child: Text(category['name'] as String),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _reportData.categoryId = value;
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Instansi Tujuan
+          const Text(
+            'Instansi Tujuan',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: DropdownButtonFormField<int>(
+              value: _reportData.agencyId,
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: InputBorder.none,
+              ),
+              hint: const Text('Pilih Instansi'),
+              items: _agencies.map((agency) {
+                return DropdownMenuItem(
+                  value: agency['id'] as int,
+                  child: Text(agency['name'] as String),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _reportData.agencyId = value;
+                });
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep3() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Rangkuman Laporan',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Data Laporan
+          _buildSummaryItem('Judul', _reportData.title ?? ''),
+          _buildSummaryItem('Deskripsi', _reportData.description ?? ''),
+          _buildSummaryItem(
+            'Lokasi',
+            _provinces
+                .firstWhere(
+                  (p) => p['id'] == _reportData.provinceId,
+              orElse: () => {'name': ''},
+            )['name']
+                ?.toString() ??
+                '',
+          ),
+          _buildSummaryItem(
+            'Kota/Kabupaten',
+            _cities
+                .firstWhere(
+                  (c) => c['id'] == _reportData.cityId,
+              orElse: () => {'name': ''},
+            )['name']
+                ?.toString() ??
+                '',
+          ),
+          _buildSummaryItem('Alamat', _reportData.address ?? ''),
+          _buildSummaryItem(
+            'Kategori',
+            _categories
+                .firstWhere(
+                  (c) => c['id'] == _reportData.categoryId,
+              orElse: () => {'name': ''},
+            )['name']
+                ?.toString() ??
+                '',
+          ),
+          _buildSummaryItem(
+            'Instansi Tujuan',
+            _agencies
+                .firstWhere(
+                  (a) => a['id'] == _reportData.agencyId,
+              orElse: () => {'name': ''},
+            )['name']
+                ?.toString() ??
+                '',
+          ),
+          _buildSummaryItem(
+            'Mode Pelaporan',
+            _reportData.isAnonymous ? 'Anonim' : 'Publik',
+          ),
+
+          if (_reportData.imagePath != null) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Bukti',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.file(
+                File(_reportData.imagePath!),
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+          // Checkbox Verifikasi
+          Row(
+            children: [
+              Checkbox(
+                value: _reportData.isVerified,
+                onChanged: (value) {
+                  setState(() {
+                    _reportData.isVerified = value!;
+                  });
+                },
+              ),
+              const Expanded(
+                child: Text(
+                  'Dengan ini saya menyatakan bahwa laporan yang saya tulis benar adanya.',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.black,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _nextStep() {
+    if (_currentStep == 1 && !_reportData.isStep1Valid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lengkapi semua data yang diperlukan')),
+      );
+      return;
+    }
+
+    if (_currentStep == 2 && !_reportData.isStep2Valid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih kategori dan instansi tujuan')),
+      );
+      return;
+    }
+
+    setState(() {
+      if (_currentStep < 3) _currentStep++;
+    });
+  }
+
+  void _previousStep() {
+    setState(() {
+      if (_currentStep > 1) _currentStep--;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF001F53),
+        title: const Text('Buat Laporan'),
+        leading: _currentStep > 1
+            ? IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _previousStep,
+        )
+            : null,
+        automaticallyImplyLeading: _currentStep == 1,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+        children: [
+          StepIndicator(
+            currentStep: _currentStep,
+            totalSteps: 3,
+          ),
+          Expanded(
+            child: _currentStep == 1
+                ? _buildStep1()
+                : _currentStep == 2
+                ? _buildStep2()
+                : _buildStep3(),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _currentStep == 3 ? _submitReport : _nextStep,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4A24C),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  _currentStep == 3 ? 'Kirim Laporan' : 'Selanjutnya',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+}

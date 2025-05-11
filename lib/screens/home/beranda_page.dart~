@@ -1,0 +1,352 @@
+import 'package:flutter/material.dart';
+import '../../db/database_helper.dart';
+
+class BerandaPage extends StatefulWidget {
+  const BerandaPage({Key? key}) : super(key: key);
+
+  @override
+  _BerandaPageState createState() => _BerandaPageState();
+}
+
+class _BerandaPageState extends State<BerandaPage> {
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = await DatabaseHelper.instance.getCurrentUser();
+    if (user != null && mounted) {
+      setState(() {
+        _userName = user['name'] as String;
+      });
+    }
+  }
+
+  Widget _buildBar(String label, double height, Color color) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          width: 40,
+          height: height * 2,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReportCard(String title, String description, String status, String imagePath) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                'https://picsum.photos/80/80',
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 80,
+                    height: 80,
+                    color: Colors.grey[300],
+                    child: Icon(Icons.image_not_supported, color: Colors.grey[600]),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: status == 'pending'
+                              ? Colors.blue[100]
+                              : const Color(0xFFD4A24C).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          status,
+                          style: TextStyle(
+                            color: status == 'pending'
+                                ? Colors.blue[800]
+                                : const Color(0xFFD4A24C),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {},
+                        child: const Text(
+                          'selengkapnya',
+                          style: TextStyle(
+                            color: Color(0xFF001F53),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF001F53),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header with profile
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Halo $_userName! ',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const Text(
+                            '👋',
+                            style: TextStyle(fontSize: 20),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: const [
+                          Text(
+                            'Lapor.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFFD4A24C),
+                            ),
+                          ),
+                          Text(
+                            'in',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFFD4A24C),
+                            ),
+                          ),
+                          Text(
+                            ' keluhan kamu!',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const CircleAvatar(
+                    radius: 25,
+                    backgroundImage: NetworkImage(
+                      'https://picsum.photos/200',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Cari...',
+                    border: InputBorder.none,
+                    icon: Icon(Icons.search, color: Colors.grey[600]),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Main Content
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Text(
+                            'Yuk intip laporan masuk sobat ',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Lapor.in',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFD4A24C),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Chart
+                      Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Grafik Status Laporan',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Expanded(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  _buildBar('Batal', 20, Colors.red[200]!),
+                                  _buildBar('Diproses', 45, Color(0xFFD4A24C)),
+                                  _buildBar('Pending', 35, Colors.blue[200]!),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Recent Reports
+                      Row(
+                        children: const [
+                          Text(
+                            'Laporan Terkini dari sobat ',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Lapor.in',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFD4A24C),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Report Cards
+                      _buildReportCard(
+                        'Dicari anak hilang di Rungkut',
+                        'Nama: Domtol, ciri-ciri kacamata...',
+                        'pending',
+                        'assets/images/missing.jpg',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildReportCard(
+                        'Tanah longsor di Sidoarjo',
+                        'Pukul 3 dini hari terjadi longsor...',
+                        'diproses',
+                        'assets/images/landslide.jpg',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,446 @@
+import 'dart:async';
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
+
+class DatabaseHelper {
+  // Singleton instance
+  DatabaseHelper._privateConstructor();
+  static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
+
+  static Database? _database;
+
+  // Getter untuk database
+  Future<Database> get database async => _database ??= await _initDatabase();
+
+  // Inisialisasi database
+  Future<Database> _initDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'laporin.db');
+    print('Database path: $path'); // Debug print
+
+    final db = await openDatabase(
+      path,
+      version: 1,
+      onCreate: _onCreate,
+    );
+
+    return db;
+  }
+
+  // Buat table users dan tabel pendukung
+  Future _onCreate(Database db, int version) async {
+    print('Creating database tables...'); // Debug print
+
+    // Tabel users
+    await db.execute('''
+      CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        address TEXT NOT NULL,
+        gender TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL
+      )
+    ''');
+
+    // Tabel provinsi
+    await db.execute('''
+      CREATE TABLE provinces (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL
+      )
+    ''');
+
+    // Tabel kota
+    await db.execute('''
+      CREATE TABLE cities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        province_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        FOREIGN KEY (province_id) REFERENCES provinces (id)
+      )
+    ''');
+
+    // Tabel kategori
+    await db.execute('''
+      CREATE TABLE categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL
+      )
+    ''');
+
+    // Tabel instansi
+    await db.execute('''
+      CREATE TABLE agencies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL
+      )
+    ''');
+
+    // Tabel laporan
+    await db.execute('''
+      CREATE TABLE reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        province_id INTEGER NOT NULL,
+        city_id INTEGER NOT NULL,
+        address TEXT NOT NULL,
+        category_id INTEGER NOT NULL,
+        agency_id INTEGER NOT NULL,
+        image_path TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_anonymous INTEGER DEFAULT 0,
+        FOREIGN KEY (user_id) REFERENCES users (id),
+        FOREIGN KEY (province_id) REFERENCES provinces (id),
+        FOREIGN KEY (city_id) REFERENCES cities (id),
+        FOREIGN KEY (category_id) REFERENCES categories (id),
+        FOREIGN KEY (agency_id) REFERENCES agencies (id)
+      )
+    ''');
+
+    // Insert kategori
+    await db.insert('categories', {'name': 'Bencana'});
+    await db.insert('categories', {'name': 'Aduan'});
+
+    // Insert contoh instansi
+    final agencies = [
+      'Polisi',
+      'Pemadam Kebakaran',
+      'Dinas Sosial',
+      'BPBD',
+      'Dinas Kesehatan',
+      'Dinas Perhubungan',
+    ];
+
+    for (String agency in agencies) {
+      await db.insert('agencies', {'name': agency});
+    }
+    print('Tables created successfully'); // Debug print
+
+    // Insert data provinsi dan kota
+    await _insertInitialProvinces(db);
+    await _insertInitialCities(db);
+  }
+
+  Future<void> _insertInitialCities(Database db) async {
+    // Contoh data kota untuk beberapa provinsi
+    final cities = [
+      // Jawa Timur
+      {'province_id': 15, 'name': 'Surabaya'},
+      {'province_id': 15, 'name': 'Malang'},
+      {'province_id': 15, 'name': 'Sidoarjo'},
+      {'province_id': 15, 'name': 'Gresik'},
+      {'province_id': 15, 'name': 'Mojokerto'},
+      {'province_id': 15, 'name': 'Pasuruan'},
+
+      // DKI Jakarta
+      {'province_id': 11, 'name': 'Jakarta Pusat'},
+      {'province_id': 11, 'name': 'Jakarta Utara'},
+      {'province_id': 11, 'name': 'Jakarta Barat'},
+      {'province_id': 11, 'name': 'Jakarta Selatan'},
+      {'province_id': 11, 'name': 'Jakarta Timur'},
+
+      // Jawa Barat
+      {'province_id': 12, 'name': 'Bandung'},
+      {'province_id': 12, 'name': 'Bekasi'},
+      {'province_id': 12, 'name': 'Depok'},
+      {'province_id': 12, 'name': 'Bogor'},
+      {'province_id': 12, 'name': 'Cimahi'},
+
+      // Jawa Tengah
+      {'province_id': 13, 'name': 'Semarang'},
+      {'province_id': 13, 'name': 'Solo'},
+      {'province_id': 13, 'name': 'Magelang'},
+      {'province_id': 13, 'name': 'Pekalongan'},
+      {'province_id': 13, 'name': 'Salatiga'},
+
+      // DI Yogyakarta
+      {'province_id': 14, 'name': 'Yogyakarta'},
+      {'province_id': 14, 'name': 'Sleman'},
+      {'province_id': 14, 'name': 'Bantul'},
+      {'province_id': 14, 'name': 'Kulon Progo'},
+      {'province_id': 14, 'name': 'Gunung Kidul'},
+
+      // Banten
+      {'province_id': 16, 'name': 'Tangerang'},
+      {'province_id': 16, 'name': 'Serang'},
+      {'province_id': 16, 'name': 'Cilegon'},
+      {'province_id': 16, 'name': 'Tangerang Selatan'},
+
+      // Bali
+      {'province_id': 17, 'name': 'Denpasar'},
+      {'province_id': 17, 'name': 'Badung'},
+      {'province_id': 17, 'name': 'Gianyar'},
+      {'province_id': 17, 'name': 'Tabanan'},
+      {'province_id': 17, 'name': 'Jembrana'},
+    ];
+
+    print('Inserting initial cities data...'); // Debug print
+    for (var city in cities) {
+      await db.insert('cities', city);
+    }
+    print('Initial cities data inserted'); // Debug print
+  }
+
+  Future<void> _insertInitialProvinces(Database db) async {
+    final provinces = [
+      'Aceh',
+      'Sumatera Utara',
+      'Sumatera Barat',
+      'Riau',
+      'Jambi',
+      'Sumatera Selatan',
+      'Bengkulu',
+      'Lampung',
+      'Kepulauan Bangka Belitung',
+      'Kepulauan Riau',
+      'DKI Jakarta',
+      'Jawa Barat',
+      'Jawa Tengah',
+      'DI Yogyakarta',
+      'Jawa Timur',
+      'Banten',
+      'Bali',
+      'Nusa Tenggara Barat',
+      'Nusa Tenggara Timur',
+      'Kalimantan Barat',
+      'Kalimantan Tengah',
+      'Kalimantan Selatan',
+      'Kalimantan Timur',
+      'Kalimantan Utara',
+      'Sulawesi Utara',
+      'Sulawesi Tengah',
+      'Sulawesi Selatan',
+      'Sulawesi Tenggara',
+      'Gorontalo',
+      'Sulawesi Barat',
+      'Maluku',
+      'Maluku Utara',
+      'Papua',
+      'Papua Barat'
+    ];
+
+    for (String province in provinces) {
+      await db.insert('provinces', {'name': province});
+    }
+    print('Initial provinces data inserted');
+  }
+
+  // Fungsi untuk registrasi user baru
+  Future<int> registerUser(Map<String, dynamic> row) async {
+    Database db = await instance.database;
+    print('Attempting to register user with data: $row'); // Debug print
+
+    try {
+      final id = await db.insert('users', row);
+      print('User registered successfully with id: $id'); // Debug print
+
+      // Verify user was inserted
+      final user = await getUserByEmail(row['email'] as String);
+      print('Newly registered user data: $user'); // Debug print
+
+      return id;
+    } catch (error) {
+      print('Error registering user: $error'); // Debug print
+      throw Exception('Gagal mendaftarkan user: $error');
+    }
+  }
+
+  // Fungsi untuk mendapatkan user berdasarkan email
+  Future<Map<String, dynamic>?> getUserByEmail(String email) async {
+    Database db = await instance.database;
+    print('Querying database for email: $email'); // Debug print
+
+    List<Map<String, dynamic>> results = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+
+    print('Query results: $results'); // Debug print
+
+    if (results.isNotEmpty) {
+      print('User found: ${results.first}'); // Debug print
+      return results.first;
+    } else {
+      print('No user found for email: $email'); // Debug print
+      return null;
+    }
+  }
+
+  // Fungsi untuk menyimpan email user yang sedang login
+  static String? _currentUserEmail;
+
+  void setCurrentUserEmail(String? email) {
+    _currentUserEmail = email;
+  }
+
+  Future<Map<String, dynamic>?> getCurrentUser() async {
+    if (_currentUserEmail != null) {
+      final user = await getUserByEmail(_currentUserEmail!);
+      print('Current user data: $user'); // Debug print
+      return user;
+    }
+    print('No current user email found'); // Debug print
+    return null;
+  }
+
+  // Fungsi untuk mendapatkan semua provinsi
+  Future<List<Map<String, dynamic>>> getAllProvinces() async {
+    Database db = await instance.database;
+    return await db.query('provinces', orderBy: 'name');
+  }
+
+  // Fungsi untuk mendapatkan kota berdasarkan provinsi
+  Future<List<Map<String, dynamic>>> getCitiesByProvince(int provinceId) async {
+    Database db = await instance.database;
+    return await db.query(
+        'cities',
+        where: 'province_id = ?',
+        whereArgs: [provinceId],
+        orderBy: 'name'
+    );
+  }
+
+  // Fungsi untuk mendapatkan laporan berdasarkan user
+  Future<List<Map<String, dynamic>>> getReportsByUser(int userId) async {
+    Database db = await instance.database;
+    return await db.query(
+        'reports',
+        where: 'user_id = ?',
+        whereArgs: [userId],
+        orderBy: 'created_at DESC'
+    );
+  }
+
+  // Fungsi untuk mendapatkan semua laporan (untuk admin/publik)
+  // Fungsi untuk mendapatkan semua kategori
+  Future<List<Map<String, dynamic>>> getAllCategories() async {
+    Database db = await instance.database;
+    return await db.query('categories', orderBy: 'name');
+  }
+
+  // Fungsi untuk mendapatkan semua instansi
+  Future<List<Map<String, dynamic>>> getAllAgencies() async {
+    Database db = await instance.database;
+    return await db.query('agencies', orderBy: 'name');
+  }
+
+  // Fungsi untuk membuat laporan baru
+  Future<int> createReport({
+    required int userId,
+    required String title,
+    required String description,
+    required int provinceId,
+    required int cityId,
+    required String address,
+    required int categoryId,
+    required int agencyId,
+    String? imagePath,
+    required bool isAnonymous,
+  }) async {
+    Database db = await instance.database;
+
+    final reportData = {
+      'user_id': userId,
+      'title': title,
+      'description': description,
+      'province_id': provinceId,
+      'city_id': cityId,
+      'address': address,
+      'category_id': categoryId,
+      'agency_id': agencyId,
+      'image_path': imagePath,
+      'is_anonymous': isAnonymous ? 1 : 0,
+      'created_at': DateTime.now().toIso8601String(),
+    };
+
+    print('Creating report with data: $reportData'); // Debug print
+
+    try {
+      final id = await db.insert('reports', reportData);
+      print('Report created successfully with id: $id'); // Debug print
+      return id;
+    } catch (e) {
+      print('Error creating report: $e'); // Debug print
+      throw Exception('Gagal membuat laporan: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllReports({bool includeAnonymous = true}) async {
+    Database db = await instance.database;
+    String query = '''
+      SELECT 
+        r.*,
+        CASE 
+          WHEN r.is_anonymous = 1 THEN 'Anonymous'
+          ELSE u.name
+        END as reporter_name,
+        p.name as province_name,
+        c.name as city_name,
+        cat.name as category_name,
+        a.name as agency_name
+      FROM reports r
+      LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN provinces p ON r.province_id = p.id
+      LEFT JOIN cities c ON r.city_id = c.id
+      LEFT JOIN categories cat ON r.category_id = cat.id
+      LEFT JOIN agencies a ON r.agency_id = a.id
+    ''';
+
+    if (!includeAnonymous) {
+      query += ' WHERE r.is_anonymous = 0';
+    }
+
+    query += ' ORDER BY r.created_at DESC';
+
+    return await db.rawQuery(query);
+  }
+
+  // Fungsi untuk mendapatkan user berdasarkan nomor telepon
+  Future<Map<String, dynamic>?> getUserByPhone(String phone) async {
+    Database db = await instance.database;
+    List<Map<String, dynamic>> results = await db.query(
+      'users',
+      where: 'phone = ?',
+      whereArgs: [phone],
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  // Fungsi untuk validasi login
+  Future<bool> validateUser(String email, String password) async {
+    Database db = await instance.database;
+    print('Validating user login for email: $email'); // Debug print
+
+    // Print all users in database for debugging
+    final allUsers = await db.query('users');
+    print('All users in database: $allUsers'); // Debug print
+
+    List<Map<String, dynamic>> results = await db.query(
+      'users',
+      where: 'email = ? AND password = ?',
+      whereArgs: [email, password],
+    );
+
+    print('Login query results: $results'); // Debug print
+
+    if (results.isNotEmpty) {
+      print('Login successful for email: $email'); // Debug print
+      setCurrentUserEmail(email);
+      print('Current user email set to: $_currentUserEmail'); // Debug print
+
+      // Verify user data is accessible
+      final userData = await getCurrentUser();
+      print('Current user data after login: $userData'); // Debug print
+
+      return true;
+    }
+
+    print('Login failed for email: $email'); // Debug print
+    return false;
+  }
+}

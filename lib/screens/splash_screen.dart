@@ -1,0 +1,53 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({Key? key}) : super(key: key);
+  @override
+  _SplashScreenState createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 2), () {
+      Navigator.of(context).pushReplacementNamed('/landing'); // Navigasi ke landing page
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF001F53),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/logo.png',
+              width: 120,
+              height: 120,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.error_outline,
+                  size: 120,
+                  color: Color(0xFFD4A24C),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Lapor.in',
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                fontSize: 28,
+                color: const Color(0xFFD4A24C),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
