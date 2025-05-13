@@ -12,7 +12,7 @@ class LandingPage extends StatefulWidget {
 class _LandingPageState extends State<LandingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  Timer? _timer;
+  late Timer _timer;
   List<String> _images = [];
   bool _isLoading = true;
 
@@ -54,23 +54,23 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   void _startImageTimer() {
-    // Cancel existing timer if any
-    _timer?.cancel();
-
-    // Only start timer if there's more than one image
+    // Hanya mulai timer jika ada lebih dari 1 gambar
     if (_images.length > 1) {
       _timer = Timer.periodic(const Duration(seconds: 3), (Timer timer) {
         if (_images.isEmpty) return;
 
-        // Use modulo operator for smooth rotation
-        final nextPage = (_currentPage + 1) % _images.length;
+        // Hitung halaman berikutnya
+        int nextPage = _currentPage + 1;
+        if (nextPage >= _images.length) {
+          nextPage = 0;
+        }
 
-        // Animate to next page if controller is attached
+        // Animasi ke halaman berikutnya
         if (_pageController.hasClients) {
           _pageController.animateToPage(
             nextPage,
             duration: const Duration(milliseconds: 350),
-            curve: Curves.easeInOut,
+            curve: Curves.easeIn,
           );
         }
       });
@@ -79,7 +79,16 @@ class _LandingPageState extends State<LandingPage> {
 
   @override
   void dispose() {
-    _timer?.cancel();  // Safely cancel timer if it exists
+    if (_timer.isActive) {
+      _timer.cancel();
+    }
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
     _pageController.dispose();
     super.dispose();
   }

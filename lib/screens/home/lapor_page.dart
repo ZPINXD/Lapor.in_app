@@ -17,6 +17,7 @@ class _LaporPageState extends State<LaporPage> {
   final _reportData = ReportFormData();
   int _currentStep = 1;
   bool _isLoading = false;
+  bool _isLoadingCities = false; // Menambahkan state untuk loading kota
 
   // Controllers
   final _titleController = TextEditingController();
@@ -36,26 +37,58 @@ class _LaporPageState extends State<LaporPage> {
   }
 
   Future<void> _loadInitialData() async {
-    final provinces = await DatabaseHelper.instance.getAllProvinces();
-    final categories = await DatabaseHelper.instance.getAllCategories();
-    final agencies = await DatabaseHelper.instance.getAllAgencies();
+    setState(() {
+      _isLoading = true;
+    });
 
-    if (mounted) {
-      setState(() {
-        _provinces = provinces;
-        _categories = categories;
-        _agencies = agencies;
-      });
+    try {
+      final provinces = await DatabaseHelper.instance.getAllProvinces();
+      final categories = await DatabaseHelper.instance.getAllCategories();
+      final agencies = await DatabaseHelper.instance.getAllAgencies();
+
+      if (mounted) {
+        setState(() {
+          _provinces = List<Map<String, dynamic>>.from(provinces);
+          _categories = List<Map<String, dynamic>>.from(categories);
+          _agencies = List<Map<String, dynamic>>.from(agencies);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat data: $e')),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _loadCities(int provinceId) async {
-    final cities = await DatabaseHelper.instance.getCitiesByProvince(provinceId);
-    if (mounted) {
-      setState(() {
-        _cities = cities;
-        _reportData.cityId = null;
-      });
+    setState(() {
+      _isLoadingCities = true;
+    });
+
+    try {
+      final cities = await DatabaseHelper.instance.getCitiesByProvince(provinceId);
+      if (mounted) {
+        setState(() {
+          _cities = List<Map<String, dynamic>>.from(cities);
+          _reportData.cityId = null;
+          _isLoadingCities = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat data kota: $e')),
+        );
+        setState(() {
+          _isLoadingCities = false;
+        });
+      }
     }
   }
 
@@ -89,7 +122,10 @@ class _LaporPageState extends State<LaporPage> {
   Future<void> _submitReport() async {
     if (!_reportData.isStep3Valid) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Harap centang pernyataan kebenaran laporan')),
+        const SnackBar(
+          content: Text('Harap centang pernyataan kebenaran laporan'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -100,7 +136,7 @@ class _LaporPageState extends State<LaporPage> {
       final user = await DatabaseHelper.instance.getCurrentUser();
       if (user == null) throw Exception('User tidak ditemukan');
 
-      await DatabaseHelper.instance.createReport(
+      final report = await DatabaseHelper.instance.createReport(
         userId: user['id'] as int,
         title: _reportData.title!,
         description: _reportData.description!,
@@ -114,22 +150,139 @@ class _LaporPageState extends State<LaporPage> {
       );
 
       if (mounted) {
+        setState(() => _isLoading = false);
+
+        // Tampilkan snackbar sukses
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Laporan berhasil dibuat')),
+          const SnackBar(
+            content: Text('Laporan berhasil dikirim'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
         );
-        Navigator.pop(context);
+
+        // Tunggu snackbar selesai sebelum navigasi
+        await Future.delayed(const Duration(seconds: 2));
+
+        if (mounted) {
+          // Navigate to main screen with beranda tab
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/main',
+                (route) => false,
+            arguments: {'initialIndex': 0}, // 0 adalah index beranda
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
     }
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required String hint,
+    required List<Map<String, dynamic>> items,
+    required int? value,
+    required Function(int?) onChanged,
+    bool isLoading = false,
+    String? Function(int?)? validator,
+  }) {
+    final bool isDisabled = items.isEmpty && !isLoading && value == null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: isLoading ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4A24C)),
+              ),
+            ),
+          ) : Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isDisabled ? () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(isLoading ? 'Sedang memuat data...' : 'Pilih provinsi terlebih dahulu'),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              } : null,
+              child: IgnorePointer(
+                ignoring: isDisabled,
+                child: DropdownButtonFormField<int>(
+                  value: value,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFD4A24C)),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.red[300]!),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                  ),
+                  icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
+                  hint: Text(hint, style: const TextStyle(color: Colors.grey)),
+                  items: items.map((item) {
+                    return DropdownMenuItem(
+                      value: item['id'] as int,
+                      child: Text(
+                        item['name'] as String,
+                        style: const TextStyle(color: Colors.black),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: onChanged,
+                  validator: validator,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildStep1() {
@@ -140,82 +293,51 @@ class _LaporPageState extends State<LaporPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Provinsi
-            const Text(
-              'Provinsi',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: DropdownButtonFormField<int>(
-                value: _reportData.provinceId,
-                decoration: const InputDecoration(
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: InputBorder.none,
-                ),
-                hint: const Text('Pilih Provinsi'),
-                items: _provinces.map((province) {
-                  return DropdownMenuItem(
-                    value: province['id'] as int,
-                    child: Text(province['name'] as String),
-                  );
-                }).toList(),
-                onChanged: (value) {
+            // Dropdown Provinsi
+            _buildDropdown(
+              label: 'Provinsi',
+              hint: 'Pilih Provinsi',
+              items: _provinces,
+              value: _reportData.provinceId,
+              onChanged: (value) async {
+                if (value != null) {
                   setState(() {
                     _reportData.provinceId = value;
-                    if (value != null) {
-                      _loadCities(value);
-                    }
+                    _cities.clear();
+                    _reportData.cityId = null;
                   });
-                },
-              ),
+                  await _loadCities(value);
+                }
+              },
+              validator: (value) {
+                if (value == null) {
+                  return 'Provinsi harus dipilih';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 16),
 
-            // Kota/Kabupaten
-            const Text(
-              'Kota/Kabupaten',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: DropdownButtonFormField<int>(
-                value: _reportData.cityId,
-                decoration: const InputDecoration(
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: InputBorder.none,
-                ),
-                hint: const Text('Pilih Kota/Kabupaten'),
-                items: _cities.map((city) {
-                  return DropdownMenuItem(
-                    value: city['id'] as int,
-                    child: Text(city['name'] as String),
-                  );
-                }).toList(),
-                onChanged: (value) {
+            // Dropdown Kota/Kabupaten
+            _buildDropdown(
+              label: 'Kota/Kabupaten',
+              hint: 'Pilih Kota/Kabupaten',
+              items: _cities,
+              value: _reportData.cityId,
+              onChanged: (value) {
+                if (value != null) {
                   setState(() {
                     _reportData.cityId = value;
                   });
-                },
-              ),
+                }
+              },
+              isLoading: _isLoadingCities,
+              validator: (value) {
+                if (value == null) {
+                  return 'Kota/Kabupaten harus dipilih';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 16),
 
@@ -231,6 +353,7 @@ class _LaporPageState extends State<LaporPage> {
             const SizedBox(height: 8),
             TextFormField(
               controller: _addressController,
+              style: const TextStyle(color: Colors.black), // Menambahkan warna text input
               decoration: InputDecoration(
                 hintText: 'Masukkan alamat lengkap',
                 filled: true,
@@ -266,6 +389,7 @@ class _LaporPageState extends State<LaporPage> {
             const SizedBox(height: 8),
             TextFormField(
               controller: _titleController,
+              style: const TextStyle(color: Colors.black), // Menambahkan warna text input
               decoration: InputDecoration(
                 hintText: 'Masukkan judul laporan',
                 filled: true,
@@ -302,6 +426,7 @@ class _LaporPageState extends State<LaporPage> {
             TextFormField(
               controller: _descriptionController,
               maxLines: 4,
+              style: const TextStyle(color: Colors.black), // Menambahkan warna text input
               decoration: InputDecoration(
                 hintText: 'Masukkan deskripsi laporan',
                 filled: true,
@@ -455,11 +580,32 @@ class _LaporPageState extends State<LaporPage> {
             ),
             child: DropdownButtonFormField<int>(
               value: _reportData.categoryId,
-              decoration: const InputDecoration(
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: InputBorder.none,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                filled: true,
+                fillColor: Colors.white,
               ),
-              hint: const Text('Pilih Kategori'),
+              dropdownColor: Colors.white,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+              ),
+              icon: const Icon(
+                Icons.arrow_drop_down,
+                color: Colors.black,
+              ),
+              hint: const Text(
+                'Pilih Kategori',
+                style: TextStyle(color: Colors.grey),
+              ),
               items: _categories.map((category) {
                 return DropdownMenuItem(
                   value: category['id'] as int,
@@ -493,11 +639,32 @@ class _LaporPageState extends State<LaporPage> {
             ),
             child: DropdownButtonFormField<int>(
               value: _reportData.agencyId,
-              decoration: const InputDecoration(
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: InputBorder.none,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                filled: true,
+                fillColor: Colors.white,
               ),
-              hint: const Text('Pilih Instansi'),
+              dropdownColor: Colors.white,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+              ),
+              icon: const Icon(
+                Icons.arrow_drop_down,
+                color: Colors.black,
+              ),
+              hint: const Text(
+                'Pilih Instansi',
+                style: TextStyle(color: Colors.grey),
+              ),
               items: _agencies.map((agency) {
                 return DropdownMenuItem(
                   value: agency['id'] as int,
@@ -525,7 +692,7 @@ class _LaporPageState extends State<LaporPage> {
           const Text(
             'Rangkuman Laporan',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
@@ -533,8 +700,16 @@ class _LaporPageState extends State<LaporPage> {
           const SizedBox(height: 24),
 
           // Data Laporan
-          _buildSummaryItem('Judul', _reportData.title ?? ''),
-          _buildSummaryItem('Deskripsi', _reportData.description ?? ''),
+          _buildSummaryItem(
+            'Judul',
+            _reportData.title ?? '',
+            isHeader: true,
+          ),
+          _buildSummaryItem(
+            'Deskripsi',
+            _reportData.description ?? '',
+            isHeader: true,
+          ),
           _buildSummaryItem(
             'Lokasi',
             _provinces
@@ -544,6 +719,7 @@ class _LaporPageState extends State<LaporPage> {
             )['name']
                 ?.toString() ??
                 '',
+            isHeader: true,
           ),
           _buildSummaryItem(
             'Kota/Kabupaten',
@@ -554,8 +730,13 @@ class _LaporPageState extends State<LaporPage> {
             )['name']
                 ?.toString() ??
                 '',
+            isHeader: true,
           ),
-          _buildSummaryItem('Alamat', _reportData.address ?? ''),
+          _buildSummaryItem(
+            'Alamat',
+            _reportData.address ?? '',
+            isHeader: true,
+          ),
           _buildSummaryItem(
             'Kategori',
             _categories
@@ -565,6 +746,7 @@ class _LaporPageState extends State<LaporPage> {
             )['name']
                 ?.toString() ??
                 '',
+            isHeader: true,
           ),
           _buildSummaryItem(
             'Instansi Tujuan',
@@ -575,21 +757,20 @@ class _LaporPageState extends State<LaporPage> {
             )['name']
                 ?.toString() ??
                 '',
+            isHeader: true,
           ),
           _buildSummaryItem(
             'Mode Pelaporan',
             _reportData.isAnonymous ? 'Anonim' : 'Publik',
+            isHeader: true,
           ),
 
           if (_reportData.imagePath != null) ...[
             const SizedBox(height: 16),
-            const Text(
+            _buildSummaryItem(
               'Bukti',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+              '',
+              isHeader: true,
             ),
             const SizedBox(height: 8),
             ClipRRect(
@@ -631,7 +812,7 @@ class _LaporPageState extends State<LaporPage> {
     );
   }
 
-  Widget _buildSummaryItem(String label, String value) {
+  Widget _buildSummaryItem(String label, String value, {bool isHeader = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -639,17 +820,19 @@ class _LaporPageState extends State<LaporPage> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
+            style: TextStyle(
+              fontSize: isHeader ? 16 : 14,
+              fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 16,
+            style: TextStyle(
+              fontSize: isHeader ? 16 : 14,
               color: Colors.black,
+              height: 1.5,
             ),
           ),
         ],
@@ -689,14 +872,21 @@ class _LaporPageState extends State<LaporPage> {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: const Color(0xFF001F53),
-        title: const Text('Buat Laporan'),
+        title: const Text(
+          'Buat Laporan',
+          style: TextStyle(color: Colors.white),
+        ),
         leading: _currentStep > 1
             ? IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+          ),
           onPressed: _previousStep,
         )
             : null,
-        automaticallyImplyLeading: _currentStep == 1,
+        automaticallyImplyLeading: false, // Menonaktifkan tombol back default di step 1
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../db/database_helper.dart';
+import 'package:intl/intl.dart';
 
 class BerandaPage extends StatefulWidget {
   const BerandaPage({Key? key}) : super(key: key);
@@ -9,163 +11,106 @@ class BerandaPage extends StatefulWidget {
 }
 
 class _BerandaPageState extends State<BerandaPage> {
-  String _userName = '';
+  final List<Map<String, dynamic>> _statusColors = [
+    {'status': 'pending', 'color': const Color(0xFF3B82F6), 'text': 'Pending'},
+    {'status': 'proses', 'color': const Color(0xFFF59E0B), 'text': 'Diproses'},
+    {'status': 'selesai', 'color': const Color(0xFF10B981), 'text': 'Selesai'},
+    {'status': 'dibatalkan', 'color': const Color(0xFFEF4444), 'text': 'Dibatalkan'},
+  ];
+
+  String? _selectedStatus;
+  DateTime? _selectedDate;
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _reports = [];
+  Map<String, dynamic>? _currentUser;
+  List<Map<DateTime, int>> _timelineData = [];
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _loadInitialData();
   }
 
-  Future<void> _loadUserData() async {
-    print('Loading user data in BerandaPage...'); // Debug print
-    final user = await DatabaseHelper.instance.getCurrentUser();
-    print('User data received in BerandaPage: $user'); // Debug print
-    if (user != null && mounted) {
-      setState(() {
-        _userName = user['name'] as String;
-        print('Username set to: $_userName'); // Debug print
-      });
-    } else {
-      print('No user data available or widget unmounted'); // Debug print
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Load user data
+      final user = await DatabaseHelper.instance.getCurrentUser();
+
+      // Load reports
+      final reports = await DatabaseHelper.instance.getAllReports();
+
+      // Load timeline data
+      final db = await DatabaseHelper.instance.database;
+      final now = DateTime.now();
+      final lastWeek = now.subtract(const Duration(days: 7));
+
+      final timelineResult = await db.rawQuery('''
+        SELECT date(created_at) as date, COUNT(*) as count
+        FROM reports
+        WHERE date(created_at) >= date(?)
+        GROUP BY date(created_at)
+        ORDER BY date(created_at)
+      ''', [lastWeek.toIso8601String()]);
+
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+          _reports = List<Map<String, dynamic>>.from(reports);
+          _timelineData = timelineResult.map((row) {
+            return {
+              DateTime.parse(row['date'] as String): row['count'] as int
+            };
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading initial data: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
-  Widget _buildBar(String label, double height, Color color) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Container(
-          width: 40,
-          height: height * 2,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReportCard(String title, String description, String status, String imagePath) {
+  Widget _buildHeader() {
     return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                'https://picsum.photos/80/80',
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey[300],
-                    child: Icon(Icons.image_not_supported, color: Colors.grey[600]),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: status == 'pending'
-                              ? Colors.blue[100]
-                              : const Color(0xFFD4A24C).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          status,
-                          style: TextStyle(
-                            color: status == 'pending'
-                                ? Colors.blue[800]
-                                : const Color(0xFFD4A24C),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text(
-                          'selengkapnya',
-                          style: TextStyle(
-                            color: Color(0xFF001F53),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+      padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+      decoration: const BoxDecoration(
+        color: Color(0xFF001F53),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
         ),
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF001F53),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header with profile
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Logo dan Sambutan
+              Row(
                 children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/logo.png',
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Text(
-                            'Halo $_userName! ',
+                            'Halo ${_currentUser?['name'] ?? 'User'}! ',
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -181,14 +126,14 @@ class _BerandaPageState extends State<BerandaPage> {
                       Row(
                         children: const [
                           Text(
-                            'Lapor.',
+                            'Lapor',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Color(0xFFD4A24C),
+                              color: Colors.white,
                             ),
                           ),
                           Text(
-                            'in',
+                            '.in',
                             style: TextStyle(
                               fontSize: 16,
                               color: Color(0xFFD4A24C),
@@ -205,148 +150,475 @@ class _BerandaPageState extends State<BerandaPage> {
                       ),
                     ],
                   ),
-                  const CircleAvatar(
-                    radius: 25,
-                    backgroundImage: NetworkImage(
-                      'https://picsum.photos/200',
+                ],
+              ),
+              // Avatar
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.white,
+                child: Icon(
+                  Icons.person,
+                  color: Colors.grey[600],
+                  size: 32,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Filter Section
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.filter_list, color: Color(0xFF001F53)),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _selectedStatus,
+                  hint: const Text('Filter Status'),
+                  underline: const SizedBox(),
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('Semua Status'),
                     ),
+                    ..._statusColors.map((status) {
+                      return DropdownMenuItem(
+                        value: status['status'] as String,
+                        child: Text(status['text'] as String),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _selectedStatus = value);
+                    _filterReports();
+                  },
+                ),
+                const SizedBox(width: 16),
+                TextButton.icon(
+                  icon: const Icon(Icons.calendar_today, size: 20),
+                  label: Text(
+                    _selectedDate == null
+                        ? 'Pilih Tanggal'
+                        : DateFormat('dd/MM/yyyy').format(_selectedDate!),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  onPressed: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setState(() => _selectedDate = date);
+                      _filterReports();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineChart() {
+    if (_timelineData.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: const Center(
+          child: Text(
+            'Belum ada data laporan',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 16,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Statistik Laporan Minggu Ini',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 100,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: _timelineData.map((data) {
+                final date = data.keys.first;
+                final count = data.values.first;
+                final maxCount = _timelineData
+                    .map((d) => d.values.first)
+                    .reduce((a, b) => a > b ? a : b)
+                    .toDouble();
+                final height = count / maxCount * 80;
+
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      width: 30,
+                      height: height,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD4A24C),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('dd/MM').format(date),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReportCard(Map<String, dynamic> report) {
+    final status = report['status'] as String;
+    final statusData = _statusColors.firstWhere(
+          (s) => s['status'] == status,
+      orElse: () => _statusColors.first,
+    );
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () => _showReportDetail(report),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Gambar Laporan
+              if (report['image_path'] != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Builder(
+                    builder: (context) {
+                      final file = File(report['image_path']);
+                      if (!file.existsSync()) {
+                        return Container(
+                          width: 100,
+                          height: 100,
+                          color: Colors.grey[300],
+                          child: const Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey,
+                          ),
+                        );
+                      }
+                      return Image.file(
+                        file,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 100,
+                            height: 100,
+                            color: Colors.grey[300],
+                            child: const Icon(
+                              Icons.broken_image,
+                              color: Colors.grey,
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(width: 12),
+
+              // Informasi Laporan
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      report['title'],
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      report['description'],
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Status Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: (statusData['color'] as Color).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            statusData['text'] as String,
+                            style: TextStyle(
+                              color: statusData['color'] as Color,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+
+                        // Tombol Selengkapnya
+                        TextButton(
+                          onPressed: () => _showReportDetail(report),
+                          child: const Text(
+                            'selengkapnya',
+                            style: TextStyle(
+                              color: Color(0xFF3B82F6),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showReportDetail(Map<String, dynamic> report) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Detail Laporan',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-            ),
+              const Divider(),
 
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Cari...',
-                    border: InputBorder.none,
-                    icon: Icon(Icons.search, color: Colors.grey[600]),
+              // Content
+              _buildDetailItem('Judul', report['title']),
+              _buildDetailItem('Deskripsi', report['description']),
+              _buildDetailItem('Lokasi', report['province_name']),
+              _buildDetailItem('Kota/Kabupaten', report['city_name']),
+              _buildDetailItem('Alamat', report['address']),
+              _buildDetailItem('Kategori', report['category_name']),
+              _buildDetailItem('Instansi Tujuan', report['agency_name']),
+              _buildDetailItem('Pelapor', report['is_anonymous'] == 1
+                  ? 'Anonim'
+                  : report['reporter_name']),
+              _buildDetailItem('Status', _statusColors.firstWhere(
+                    (s) => s['status'] == report['status'],
+                orElse: () => _statusColors.first,
+              )['text'] as String),
+
+              // Gambar
+              if (report['image_path'] != null) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Bukti',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    File(report['image_path']),
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _filterReports() async {
+    setState(() => _isLoading = true);
+    try {
+      final reports = await DatabaseHelper.instance.getAllReports(
+        status: _selectedStatus,
+        date: _selectedDate,
+      );
+
+      if (mounted) {
+        setState(() {
+          _reports = reports;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      body: RefreshIndicator(
+        onRefresh: _loadInitialData,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  _buildTimelineChart(),
+                ],
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: const [
+                    Text(
+                      'Daftar Laporan',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // Main Content
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: const [
-                          Text(
-                            'Yuk intip laporan masuk sobat ',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Lapor.in',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFD4A24C),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Chart
-                      Container(
-                        height: 200,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Grafik Status Laporan',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Expanded(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  _buildBar('Batal', 20, Colors.red[200]!),
-                                  _buildBar('Diproses', 45, Color(0xFFD4A24C)),
-                                  _buildBar('Pending', 35, Colors.blue[200]!),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Recent Reports
-                      Row(
-                        children: const [
-                          Text(
-                            'Laporan Terkini dari sobat ',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Lapor.in',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFD4A24C),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Report Cards
-                      _buildReportCard(
-                        'Dicari anak hilang di Rungkut',
-                        'Nama: Domtol, ciri-ciri kacamata...',
-                        'pending',
-                        'assets/images/missing.jpg',
-                      ),
-                      const SizedBox(height: 16),
-                      _buildReportCard(
-                        'Tanah longsor di Sidoarjo',
-                        'Pukul 3 dini hari terjadi longsor...',
-                        'diproses',
-                        'assets/images/landslide.jpg',
-                      ),
-                    ],
-                  ),
-                ),
+            _isLoading
+                ? const SliverFillRemaining(
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+                : _reports.isEmpty
+                ? const SliverFillRemaining(
+              child: Center(
+                child: Text('Belum ada laporan'),
+              ),
+            )
+                : SliverList(
+              delegate: SliverChildBuilderDelegate(
+                    (context, index) => _buildReportCard(_reports[index]),
+                childCount: _reports.length,
               ),
             ),
           ],

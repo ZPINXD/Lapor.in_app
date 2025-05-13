@@ -4,6 +4,7 @@ import 'screens/login_page.dart';
 import 'screens/register_page.dart';
 import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/admin_page.dart';
 
 final Map<String, WidgetBuilder> appRoutes = {
   '/splash': (context) => const SplashScreen(),
@@ -11,4 +12,5 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/login': (context) => const LoginPage(),
   '/register': (context) => const RegisterPage(),
   '/main': (context) => const MainScreen(), // Menggunakan MainScreen sebagai container untuk semua halaman home
+  '/admin': (context) => const AdminPage(), // Menambahkan route untuk halaman admin
 };

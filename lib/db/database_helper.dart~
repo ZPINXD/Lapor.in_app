@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -8,225 +9,409 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
 
   static Database? _database;
+  static bool _isInitialized = false;
+
+  // Fungsi untuk menghapus database
+  Future<void> deleteDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'laporin.db');
+    await databaseFactory.deleteDatabase(path);
+    _database = null;
+    _isInitialized = false;
+    print('Database deleted');
+  }
 
   // Getter untuk database
-  Future<Database> get database async => _database ??= await _initDatabase();
+  Future<Database> get database async {
+    if (!_isInitialized) {
+      print('Database belum diinisialisasi, menginisialisasi...');
+      _database = await _initDatabase();
+      _isInitialized = true;
+
+      // Verifikasi inisialisasi
+      await _verifyDatabaseIntegrity(_database!);
+    } else if (_database == null) {
+      print('Database null, menginisialisasi ulang...');
+      _database = await _initDatabase();
+    }
+
+    return _database!;
+  }
+
+  // Reset database - hanya digunakan saat diperlukan
+  Future<void> resetDatabase() async {
+    await deleteDatabase();
+    _database = await _initDatabase();
+    _isInitialized = true;
+    await _verifyDatabaseIntegrity(_database!);
+  }
+
+  // Verifikasi integritas database
+  Future<void> _verifyDatabaseIntegrity(Database db) async {
+    try {
+      // Cek struktur tabel
+      final tables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+      final requiredTables = ['provinces', 'cities', 'categories', 'agencies', 'users', 'reports'];
+
+      // Tambahkan landing_images ke requiredTables jika belum ada
+      if (!tables.any((t) => t['name'] == 'landing_images')) {
+        print('Tabel landing_images tidak ditemukan, membuat tabel...');
+        await db.execute('''
+          CREATE TABLE landing_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            imagePath TEXT NOT NULL
+          )
+        ''');
+        // Insert default landing images
+        await db.insert('landing_images', {'imagePath': 'assets/image_landpage1.jpg'});
+        await db.insert('landing_images', {'imagePath': 'assets/image_landpage2.jpg'});
+        await db.insert('landing_images', {'imagePath': 'assets/image_landpage3.jpg'});
+        print('Tabel landing_images dan data default berhasil dibuat');
+      }
+
+      for (final table in requiredTables) {
+        if (!tables.any((t) => t['name'] == table)) {
+          throw Exception('Tabel $table tidak ditemukan');
+        }
+      }
+
+      // Cek data provinces dan cities
+      final provinceCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM provinces'));
+      final cityCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM cities'));
+
+      print('Database integrity check - Provinces: $provinceCount, Cities: $cityCount');
+
+      if (provinceCount == 0 || cityCount == 0) {
+        print('Warning: Database mungkin kosong, mencoba reinisialisasi...');
+        await _reinitializeDatabase(db);
+      }
+    } catch (e) {
+      print('Error verifying database integrity: $e');
+      await _reinitializeDatabase(db);
+    }
+  }
+
+  // Reinisialisasi database jika terjadi masalah
+  Future<void> _reinitializeDatabase(Database db) async {
+    print('Menginisialisasi ulang database...');
+    await _onCreate(db, 1);
+    print('Database berhasil diinisialisasi ulang');
+  }
 
   // Inisialisasi database
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'laporin.db');
-    print('Database path: $path'); // Debug print
+    print('Database path: $path');
 
-    final db = await openDatabase(
-      path,
-      version: 1,
-      onCreate: _onCreate,
-    );
+    try {
+      // Ensure the directory exists
+      await Directory(dirname(path)).create(recursive: true);
 
-    return db;
+      final db = await openDatabase(
+        path,
+        version: 1,
+        onCreate: _onCreate,
+        onConfigure: (db) async {
+          // Enable foreign keys
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+        onOpen: (db) async {
+          // Verify foreign keys are enabled
+          final result = await db.rawQuery('PRAGMA foreign_keys');
+          print('Foreign keys enabled: ${result.first}');
+
+          // Verify tables
+          final tables = await db.query('sqlite_master', where: 'type = ?', whereArgs: ['table']);
+          print('Available tables: ${tables.map((t) => t['name'])}');
+
+          // Verify data
+          final provinceCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM provinces'));
+          final cityCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM cities'));
+          print('Data counts - Provinces: $provinceCount, Cities: $cityCount');
+
+          // Verify relationships
+          if (provinceCount! > 0 && cityCount! > 0) {
+            final joinCheck = await db.rawQuery('''
+              SELECT p.name as province, COUNT(c.id) as city_count 
+              FROM provinces p 
+              LEFT JOIN cities c ON p.id = c.province_id 
+              GROUP BY p.id 
+              LIMIT 5
+            ''');
+            print('Relationship check: $joinCheck');
+          }
+        },
+      );
+      print('Database initialized successfully');
+      return db;
+    } catch (e) {
+      print('Error initializing database: $e');
+      rethrow;
+    }
   }
 
   // Buat table users dan tabel pendukung
-  Future _onCreate(Database db, int version) async {
-    print('Creating database tables...'); // Debug print
+  Future<void> _onCreate(Database db, int version) async {
+    print('Creating database tables...');
 
-    // Tabel users
-    await db.execute('''
-      CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        address TEXT NOT NULL,
-        gender TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL
-      )
-    ''');
+    try {
+      // Buat tabel provinces
+      await db.execute('''
+        CREATE TABLE provinces (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL
+        )
+      ''');
+      print('Provinces table created');
 
-    // Tabel provinsi
-    await db.execute('''
-      CREATE TABLE provinces (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL
-      )
-    ''');
+      // Insert data provinsi
+      await _insertInitialProvinces(db);
+      print('Provinces data inserted');
 
-    // Tabel kota
-    await db.execute('''
-      CREATE TABLE cities (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        province_id INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        FOREIGN KEY (province_id) REFERENCES provinces (id)
-      )
-    ''');
+      // Buat tabel cities
+      await db.execute('''
+        CREATE TABLE cities (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          province_id INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          FOREIGN KEY (province_id) REFERENCES provinces (id)
+        )
+      ''');
+      print('Cities table created');
 
-    // Tabel kategori
-    await db.execute('''
-      CREATE TABLE categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL
-      )
-    ''');
+      // Insert data kota
+      await _insertInitialCities(db);
+      print('Cities data inserted');
 
-    // Tabel instansi
-    await db.execute('''
-      CREATE TABLE agencies (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL
-      )
-    ''');
+      // Buat tabel lainnya
+      await _createOtherTables(db);
+      print('Other tables created');
 
-    // Tabel laporan
-    await db.execute('''
-      CREATE TABLE reports (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        description TEXT NOT NULL,
-        province_id INTEGER NOT NULL,
-        city_id INTEGER NOT NULL,
-        address TEXT NOT NULL,
-        category_id INTEGER NOT NULL,
-        agency_id INTEGER NOT NULL,
-        image_path TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_anonymous INTEGER DEFAULT 0,
-        FOREIGN KEY (user_id) REFERENCES users (id),
-        FOREIGN KEY (province_id) REFERENCES provinces (id),
-        FOREIGN KEY (city_id) REFERENCES cities (id),
-        FOREIGN KEY (category_id) REFERENCES categories (id),
-        FOREIGN KEY (agency_id) REFERENCES agencies (id)
-      )
-    ''');
-
-    // Insert kategori
-    await db.insert('categories', {'name': 'Bencana'});
-    await db.insert('categories', {'name': 'Aduan'});
-
-    // Insert contoh instansi
-    final agencies = [
-      'Polisi',
-      'Pemadam Kebakaran',
-      'Dinas Sosial',
-      'BPBD',
-      'Dinas Kesehatan',
-      'Dinas Perhubungan',
-    ];
-
-    for (String agency in agencies) {
-      await db.insert('agencies', {'name': agency});
+      // Verifikasi data
+      final provinceCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM provinces'));
+      final cityCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM cities'));
+      print('Verification - Provinces: $provinceCount, Cities: $cityCount');
+    } catch (e) {
+      print('Error in onCreate: $e');
+      rethrow;
     }
-    print('Tables created successfully'); // Debug print
+  }
 
-    // Insert data provinsi dan kota
-    await _insertInitialProvinces(db);
-    await _insertInitialCities(db);
+  Future<void> _createOtherTables(Database db) async {
+    try {
+      print('Creating users table...');
+      await db.execute('''
+        CREATE TABLE users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          address TEXT NOT NULL,
+          gender TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          email TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL
+        )
+      ''');
+
+      print('Creating categories table...');
+      await db.execute('''
+        CREATE TABLE categories (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL
+        )
+      ''');
+
+      print('Creating agencies table...');
+      await db.execute('''
+        CREATE TABLE agencies (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL
+        )
+      ''');
+
+      print('Creating landing_images table...');
+      await db.execute('''
+        CREATE TABLE landing_images (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          imagePath TEXT NOT NULL
+        )
+      ''');
+
+      // Insert default landing images
+      final defaultImages = [
+        'assets/images/image_landpage1.jpg',
+        'assets/images/image_landpage2.jpg',
+        'assets/images/image_landpage3.jpg'
+      ];
+
+      for (var path in defaultImages) {
+        await db.insert('landing_images', {'imagePath': path});
+      }
+      print('Default landing images inserted');
+
+      print('Creating reports table...');
+      await db.execute('''
+        CREATE TABLE reports (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          province_id INTEGER NOT NULL,
+          city_id INTEGER NOT NULL,
+          address TEXT NOT NULL,
+          category_id INTEGER NOT NULL,
+          agency_id INTEGER NOT NULL,
+          image_path TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          is_anonymous INTEGER DEFAULT 0,
+          status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'proses', 'selesai', 'dibatalkan')),
+          FOREIGN KEY (user_id) REFERENCES users (id),
+          FOREIGN KEY (province_id) REFERENCES provinces (id),
+          FOREIGN KEY (city_id) REFERENCES cities (id),
+          FOREIGN KEY (category_id) REFERENCES categories (id),
+          FOREIGN KEY (agency_id) REFERENCES agencies (id)
+        )
+      ''');
+
+      // Insert initial data
+      print('Inserting initial categories...');
+      await db.insert('categories', {'name': 'Bencana'});
+      await db.insert('categories', {'name': 'Aduan'});
+
+      print('Inserting initial agencies...');
+      final agencies = [
+        'Polisi',
+        'Pemadam Kebakaran',
+        'Dinas Sosial',
+        'BPBD',
+        'Dinas Kesehatan',
+        'Dinas Perhubungan',
+      ];
+
+      for (String agency in agencies) {
+        await db.insert('agencies', {'name': agency});
+      }
+
+      // Verify data
+      final categoryCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM categories'));
+      final agencyCount = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM agencies'));
+      print('Verification - Categories: $categoryCount, Agencies: $agencyCount');
+
+    } catch (e) {
+      print('Error in _createOtherTables: $e');
+      rethrow;
+    }
   }
 
   Future<void> _insertInitialCities(Database db) async {
-    // Contoh data kota untuk beberapa provinsi
-    final cities = [
-      // Jawa Timur
-      {'province_id': 15, 'name': 'Surabaya'},
-      {'province_id': 15, 'name': 'Malang'},
-      {'province_id': 15, 'name': 'Sidoarjo'},
-      {'province_id': 15, 'name': 'Gresik'},
-      {'province_id': 15, 'name': 'Mojokerto'},
-      {'province_id': 15, 'name': 'Pasuruan'},
+    try {
+      print('Starting to insert cities...');
 
-      // DKI Jakarta
-      {'province_id': 11, 'name': 'Jakarta Pusat'},
-      {'province_id': 11, 'name': 'Jakarta Utara'},
-      {'province_id': 11, 'name': 'Jakarta Barat'},
-      {'province_id': 11, 'name': 'Jakarta Selatan'},
-      {'province_id': 11, 'name': 'Jakarta Timur'},
+      final cities = [
+        // Jawa Timur (id: 15)
+        {'id': 1, 'province_id': 15, 'name': 'Surabaya'},
+        {'id': 2, 'province_id': 15, 'name': 'Malang'},
+        {'id': 3, 'province_id': 15, 'name': 'Sidoarjo'},
+        {'id': 4, 'province_id': 15, 'name': 'Gresik'},
+        {'id': 5, 'province_id': 15, 'name': 'Mojokerto'},
 
-      // Jawa Barat
-      {'province_id': 12, 'name': 'Bandung'},
-      {'province_id': 12, 'name': 'Bekasi'},
-      {'province_id': 12, 'name': 'Depok'},
-      {'province_id': 12, 'name': 'Bogor'},
-      {'province_id': 12, 'name': 'Cimahi'},
+        // DKI Jakarta (id: 11)
+        {'id': 6, 'province_id': 11, 'name': 'Jakarta Pusat'},
+        {'id': 7, 'province_id': 11, 'name': 'Jakarta Utara'},
+        {'id': 8, 'province_id': 11, 'name': 'Jakarta Barat'},
+        {'id': 9, 'province_id': 11, 'name': 'Jakarta Selatan'},
+        {'id': 10, 'province_id': 11, 'name': 'Jakarta Timur'},
 
-      // Jawa Tengah
-      {'province_id': 13, 'name': 'Semarang'},
-      {'province_id': 13, 'name': 'Solo'},
-      {'province_id': 13, 'name': 'Magelang'},
-      {'province_id': 13, 'name': 'Pekalongan'},
-      {'province_id': 13, 'name': 'Salatiga'},
+        // Jawa Barat (id: 12)
+        {'id': 11, 'province_id': 12, 'name': 'Bandung'},
+        {'id': 12, 'province_id': 12, 'name': 'Bekasi'},
+        {'id': 13, 'province_id': 12, 'name': 'Depok'},
+        {'id': 14, 'province_id': 12, 'name': 'Bogor'},
+        {'id': 15, 'province_id': 12, 'name': 'Cimahi'},
+      ];
 
-      // DI Yogyakarta
-      {'province_id': 14, 'name': 'Yogyakarta'},
-      {'province_id': 14, 'name': 'Sleman'},
-      {'province_id': 14, 'name': 'Bantul'},
-      {'province_id': 14, 'name': 'Kulon Progo'},
-      {'province_id': 14, 'name': 'Gunung Kidul'},
+      // Insert cities in batch
+      final batch = db.batch();
+      for (final city in cities) {
+        batch.insert('cities', city);
+      }
+      await batch.commit(noResult: true);
 
-      // Banten
-      {'province_id': 16, 'name': 'Tangerang'},
-      {'province_id': 16, 'name': 'Serang'},
-      {'province_id': 16, 'name': 'Cilegon'},
-      {'province_id': 16, 'name': 'Tangerang Selatan'},
+      // Verify insertion
+      final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM cities'));
+      print('Cities inserted: $count');
 
-      // Bali
-      {'province_id': 17, 'name': 'Denpasar'},
-      {'province_id': 17, 'name': 'Badung'},
-      {'province_id': 17, 'name': 'Gianyar'},
-      {'province_id': 17, 'name': 'Tabanan'},
-      {'province_id': 17, 'name': 'Jembrana'},
-    ];
+      // Verify foreign key relationships
+      final cityCheck = await db.rawQuery('''
+        SELECT c.name as city, p.name as province 
+        FROM cities c 
+        JOIN provinces p ON c.province_id = p.id 
+        LIMIT 1
+      ''');
+      print('City-Province relationship check: ${cityCheck.first}');
 
-    print('Inserting initial cities data...'); // Debug print
-    for (var city in cities) {
-      await db.insert('cities', city);
+    } catch (e) {
+      print('Error inserting cities: $e');
+      rethrow;
     }
-    print('Initial cities data inserted'); // Debug print
   }
 
   Future<void> _insertInitialProvinces(Database db) async {
-    final provinces = [
-      'Aceh',
-      'Sumatera Utara',
-      'Sumatera Barat',
-      'Riau',
-      'Jambi',
-      'Sumatera Selatan',
-      'Bengkulu',
-      'Lampung',
-      'Kepulauan Bangka Belitung',
-      'Kepulauan Riau',
-      'DKI Jakarta',
-      'Jawa Barat',
-      'Jawa Tengah',
-      'DI Yogyakarta',
-      'Jawa Timur',
-      'Banten',
-      'Bali',
-      'Nusa Tenggara Barat',
-      'Nusa Tenggara Timur',
-      'Kalimantan Barat',
-      'Kalimantan Tengah',
-      'Kalimantan Selatan',
-      'Kalimantan Timur',
-      'Kalimantan Utara',
-      'Sulawesi Utara',
-      'Sulawesi Tengah',
-      'Sulawesi Selatan',
-      'Sulawesi Tenggara',
-      'Gorontalo',
-      'Sulawesi Barat',
-      'Maluku',
-      'Maluku Utara',
-      'Papua',
-      'Papua Barat'
-    ];
+    try {
+      print('Starting to insert provinces...');
 
-    for (String province in provinces) {
-      await db.insert('provinces', {'name': province});
+      final provinces = [
+        {'id': 1, 'name': 'Aceh'},
+        {'id': 2, 'name': 'Sumatera Utara'},
+        {'id': 3, 'name': 'Sumatera Barat'},
+        {'id': 4, 'name': 'Riau'},
+        {'id': 5, 'name': 'Jambi'},
+        {'id': 6, 'name': 'Sumatera Selatan'},
+        {'id': 7, 'name': 'Bengkulu'},
+        {'id': 8, 'name': 'Lampung'},
+        {'id': 9, 'name': 'Kepulauan Bangka Belitung'},
+        {'id': 10, 'name': 'Kepulauan Riau'},
+        {'id': 11, 'name': 'DKI Jakarta'},
+        {'id': 12, 'name': 'Jawa Barat'},
+        {'id': 13, 'name': 'Jawa Tengah'},
+        {'id': 14, 'name': 'DI Yogyakarta'},
+        {'id': 15, 'name': 'Jawa Timur'},
+        {'id': 16, 'name': 'Banten'},
+        {'id': 17, 'name': 'Bali'},
+        {'id': 18, 'name': 'Nusa Tenggara Barat'},
+        {'id': 19, 'name': 'Nusa Tenggara Timur'},
+        {'id': 20, 'name': 'Kalimantan Barat'},
+        {'id': 21, 'name': 'Kalimantan Tengah'},
+        {'id': 22, 'name': 'Kalimantan Selatan'},
+        {'id': 23, 'name': 'Kalimantan Timur'},
+        {'id': 24, 'name': 'Kalimantan Utara'},
+        {'id': 25, 'name': 'Sulawesi Utara'},
+        {'id': 26, 'name': 'Sulawesi Tengah'},
+        {'id': 27, 'name': 'Sulawesi Selatan'},
+        {'id': 28, 'name': 'Sulawesi Tenggara'},
+        {'id': 29, 'name': 'Gorontalo'},
+        {'id': 30, 'name': 'Sulawesi Barat'},
+        {'id': 31, 'name': 'Maluku'},
+        {'id': 32, 'name': 'Maluku Utara'},
+        {'id': 33, 'name': 'Papua'},
+        {'id': 34, 'name': 'Papua Barat'}
+      ];
+
+      // Insert provinces in batch
+      final batch = db.batch();
+      for (final province in provinces) {
+        batch.insert('provinces', province);
+      }
+      await batch.commit(noResult: true);
+
+      // Verify insertion
+      final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM provinces'));
+      print('Provinces inserted: $count');
+
+    } catch (e) {
+      print('Error inserting provinces: $e');
+      rethrow;
     }
-    print('Initial provinces data inserted');
   }
 
   // Fungsi untuk registrasi user baru
@@ -290,55 +475,60 @@ class DatabaseHelper {
 
   // Fungsi untuk mendapatkan semua provinsi
   Future<List<Map<String, dynamic>>> getAllProvinces() async {
-    Database db = await instance.database;
-    return await db.query('provinces', orderBy: 'name');
+    try {
+      final db = await instance.database;
+
+      // Verifikasi tabel provinces
+      final tableCheck = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='provinces'");
+      if (tableCheck.isEmpty) {
+        throw Exception('Tabel provinces tidak ditemukan');
+      }
+
+      // Ambil data dengan verifikasi
+      final provinces = await db.query('provinces', orderBy: 'name');
+      print('Provinces fetched: ${provinces.length}');
+
+      if (provinces.isEmpty) {
+        print('Warning: No provinces found in database');
+      }
+
+      return provinces;
+    } catch (e) {
+      print('Error getting provinces: $e');
+      rethrow;
+    }
   }
 
   // Fungsi untuk mendapatkan kota berdasarkan provinsi
   Future<List<Map<String, dynamic>>> getCitiesByProvince(int provinceId) async {
-    Database db = await instance.database;
-    return await db.query(
-        'cities',
-        where: 'province_id = ?',
-        whereArgs: [provinceId],
-        orderBy: 'name'
-    );
-  }
-
-  // Fungsi untuk menyimpan laporan baru
-  Future<int> createReport({
-    required int userId,
-    required String title,
-    required String description,
-    required int provinceId,
-    required int cityId,
-    required String address,
-    String? imagePath,
-    required bool isAnonymous,
-  }) async {
-    Database db = await instance.database;
-
-    final reportData = {
-      'user_id': userId,
-      'title': title,
-      'description': description,
-      'province_id': provinceId,
-      'city_id': cityId,
-      'address': address,
-      'image_path': imagePath,
-      'is_anonymous': isAnonymous ? 1 : 0,
-      'created_at': DateTime.now().toIso8601String(),
-    };
-
-    print('Creating new report with data: $reportData'); // Debug print
-
     try {
-      final id = await db.insert('reports', reportData);
-      print('Report created successfully with id: $id'); // Debug print
-      return id;
+      final db = await instance.database;
+
+      // Verifikasi provinsi exists
+      final provinceCheck = await db.query(
+        'provinces',
+        where: 'id = ?',
+        whereArgs: [provinceId],
+      );
+
+      if (provinceCheck.isEmpty) {
+        throw Exception('Provinsi dengan ID $provinceId tidak ditemukan');
+      }
+
+      // Ambil data kota
+      final cities = await db.query(
+          'cities',
+          where: 'province_id = ?',
+          whereArgs: [provinceId],
+          orderBy: 'name'
+      );
+
+      print('Cities fetched for province $provinceId: ${cities.length}');
+
+      return cities;
     } catch (e) {
-      print('Error creating report: $e'); // Debug print
-      throw Exception('Gagal membuat laporan: $e');
+      print('Error getting cities: $e');
+      rethrow;
     }
   }
 
@@ -367,7 +557,7 @@ class DatabaseHelper {
   }
 
   // Fungsi untuk membuat laporan baru
-  Future<int> createReport({
+  Future<Map<String, dynamic>> createReport({
     required int userId,
     required String title,
     required String description,
@@ -381,34 +571,98 @@ class DatabaseHelper {
   }) async {
     Database db = await instance.database;
 
-    final reportData = {
-      'user_id': userId,
-      'title': title,
-      'description': description,
-      'province_id': provinceId,
-      'city_id': cityId,
-      'address': address,
-      'category_id': categoryId,
-      'agency_id': agencyId,
-      'image_path': imagePath,
-      'is_anonymous': isAnonymous ? 1 : 0,
-      'created_at': DateTime.now().toIso8601String(),
-    };
-
-    print('Creating report with data: $reportData'); // Debug print
-
     try {
-      final id = await db.insert('reports', reportData);
-      print('Report created successfully with id: $id'); // Debug print
-      return id;
+      // Begin transaction
+      await db.transaction((txn) async {
+        final reportData = {
+          'user_id': userId,
+          'title': title,
+          'description': description,
+          'province_id': provinceId,
+          'city_id': cityId,
+          'address': address,
+          'category_id': categoryId,
+          'agency_id': agencyId,
+          'image_path': imagePath,
+          'is_anonymous': isAnonymous ? 1 : 0,
+          'status': 'pending',
+          'created_at': DateTime.now().toIso8601String(),
+        };
+
+        print('Creating report with data: $reportData');
+
+        // Insert report
+        final id = await txn.insert('reports', reportData);
+        print('Report created successfully with id: $id');
+
+        // Fetch complete report data
+        final reports = await txn.rawQuery('''
+          SELECT 
+            r.*,
+            CASE 
+              WHEN r.is_anonymous = 1 THEN 'Anonymous'
+              ELSE u.name
+            END as reporter_name,
+            p.name as province_name,
+            c.name as city_name,
+            cat.name as category_name,
+            a.name as agency_name,
+            strftime('%d/%m/%Y %H:%M', r.created_at) as formatted_date
+          FROM reports r
+          LEFT JOIN users u ON r.user_id = u.id
+          LEFT JOIN provinces p ON r.province_id = p.id
+          LEFT JOIN cities c ON r.city_id = c.id
+          LEFT JOIN categories cat ON r.category_id = cat.id
+          LEFT JOIN agencies a ON r.agency_id = a.id
+          WHERE r.id = ?
+        ''', [id]);
+
+        if (reports.isEmpty) {
+          throw Exception('Report created but data not found');
+        }
+
+        return reports.first;
+      });
+
+      // Get the complete report data outside transaction
+      final reports = await db.rawQuery('''
+        SELECT 
+          r.*,
+          CASE 
+            WHEN r.is_anonymous = 1 THEN 'Anonymous'
+            ELSE u.name
+          END as reporter_name,
+          p.name as province_name,
+          c.name as city_name,
+          cat.name as category_name,
+          a.name as agency_name,
+          strftime('%d/%m/%Y %H:%M', r.created_at) as formatted_date
+        FROM reports r
+        LEFT JOIN users u ON r.user_id = u.id
+        LEFT JOIN provinces p ON r.province_id = p.id
+        LEFT JOIN cities c ON r.city_id = c.id
+        LEFT JOIN categories cat ON r.category_id = cat.id
+        LEFT JOIN agencies a ON r.agency_id = a.id
+        WHERE r.id = (SELECT MAX(id) FROM reports WHERE user_id = ?)
+      ''', [userId]);
+
+      return reports.first;
     } catch (e) {
-      print('Error creating report: $e'); // Debug print
+      print('Error creating report: $e');
       throw Exception('Gagal membuat laporan: $e');
     }
   }
 
-  Future<List<Map<String, dynamic>>> getAllReports({bool includeAnonymous = true}) async {
+  Future<List<Map<String, dynamic>>> getAllReports({
+    bool includeAnonymous = true,
+    int? categoryId,
+    String? status,
+    DateTime? date,
+  }) async {
     Database db = await instance.database;
+    List<String> conditions = [];
+    List<dynamic> args = [];
+
     String query = '''
       SELECT 
         r.*,
@@ -419,7 +673,8 @@ class DatabaseHelper {
         p.name as province_name,
         c.name as city_name,
         cat.name as category_name,
-        a.name as agency_name
+        a.name as agency_name,
+        strftime('%d/%m/%Y %H:%M', r.created_at) as formatted_date
       FROM reports r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN provinces p ON r.province_id = p.id
@@ -429,12 +684,54 @@ class DatabaseHelper {
     ''';
 
     if (!includeAnonymous) {
-      query += ' WHERE r.is_anonymous = 0';
+      conditions.add('r.is_anonymous = 0');
+    }
+
+    if (categoryId != null) {
+      conditions.add('r.category_id = ?');
+      args.add(categoryId);
+    }
+
+    if (status != null) {
+      conditions.add('r.status = ?');
+      args.add(status);
+    }
+
+    if (date != null) {
+      conditions.add("date(r.created_at) = date(?)");
+      args.add(date.toIso8601String());
+    }
+
+    if (conditions.isNotEmpty) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
 
     query += ' ORDER BY r.created_at DESC';
 
-    return await db.rawQuery(query);
+    try {
+      final result = await db.rawQuery(query, args);
+      print('Reports fetched: ${result.length}');
+      return result;
+    } catch (e) {
+      print('Error fetching reports: $e');
+      rethrow;
+    }
+  }
+
+  // Fungsi untuk mengupdate status laporan
+  Future<int> updateReportStatus(int reportId, String status) async {
+    Database db = await instance.database;
+    try {
+      return await db.update(
+        'reports',
+        {'status': status},
+        where: 'id = ?',
+        whereArgs: [reportId],
+      );
+    } catch (e) {
+      print('Error updating report status: $e');
+      rethrow;
+    }
   }
 
   // Fungsi untuk mendapatkan user berdasarkan nomor telepon
@@ -446,6 +743,43 @@ class DatabaseHelper {
       whereArgs: [phone],
     );
     return results.isNotEmpty ? results.first : null;
+  }
+
+  // Fungsi untuk mengelola landing images
+  Future<List<Map<String, dynamic>>> getLandingImages() async {
+    Database db = await instance.database;
+    return await db.query('landing_images', orderBy: 'id');
+  }
+
+  Future<int> insertLandingImage(String imagePath) async {
+    Database db = await instance.database;
+
+    // Cek jumlah gambar yang sudah ada
+    final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM landing_images'));
+    if (count! >= 5) {
+      throw Exception('Maksimal 5 gambar yang diperbolehkan');
+    }
+
+    return await db.insert('landing_images', {'imagePath': imagePath});
+  }
+
+  Future<int> updateLandingImage(int id, String newPath) async {
+    Database db = await instance.database;
+    return await db.update(
+      'landing_images',
+      {'imagePath': newPath},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> deleteLandingImage(int id) async {
+    Database db = await instance.database;
+    return await db.delete(
+      'landing_images',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   // Fungsi untuk validasi login
