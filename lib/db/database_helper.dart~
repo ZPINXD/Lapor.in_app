@@ -753,33 +753,89 @@ class DatabaseHelper {
 
   Future<int> insertLandingImage(String imagePath) async {
     Database db = await instance.database;
+    try {
+      // Check image count
+      final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM landing_images'));
+      if (count! >= 5) {
+        throw Exception('Maksimal 5 gambar yang diperbolehkan');
+      }
 
-    // Cek jumlah gambar yang sudah ada
-    final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM landing_images'));
-    if (count! >= 5) {
-      throw Exception('Maksimal 5 gambar yang diperbolehkan');
+      // Verify the image exists if it's a file path
+      if (!imagePath.startsWith('assets/')) {
+        final file = File(imagePath);
+        if (!await file.exists()) {
+          throw Exception('File gambar tidak ditemukan');
+        }
+      }
+
+      return await db.insert('landing_images', {'imagePath': imagePath});
+    } catch (e) {
+      print('Error inserting landing image: $e');
+      rethrow;
     }
-
-    return await db.insert('landing_images', {'imagePath': imagePath});
   }
 
   Future<int> updateLandingImage(int id, String newPath) async {
     Database db = await instance.database;
-    return await db.update(
-      'landing_images',
-      {'imagePath': newPath},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    try {
+      // Get old image path
+      final oldImage = await db.query(
+        'landing_images',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+      if (oldImage.isNotEmpty) {
+        final oldPath = oldImage.first['imagePath'] as String;
+        if (!oldPath.startsWith('assets/')) {
+          final oldFile = File(oldPath);
+          if (await oldFile.exists()) {
+            await oldFile.delete();
+          }
+        }
+      }
+
+      return await db.update(
+        'landing_images',
+        {'imagePath': newPath},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    } catch (e) {
+      print('Error updating landing image: $e');
+      rethrow;
+    }
   }
 
   Future<int> deleteLandingImage(int id) async {
     Database db = await instance.database;
-    return await db.delete(
-      'landing_images',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    try {
+      // Get image path before deleting
+      final image = await db.query(
+        'landing_images',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+      if (image.isNotEmpty) {
+        final imagePath = image.first['imagePath'] as String;
+        if (!imagePath.startsWith('assets/')) {
+          final file = File(imagePath);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        }
+      }
+
+      return await db.delete(
+        'landing_images',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    } catch (e) {
+      print('Error deleting landing image: $e');
+      rethrow;
+    }
   }
 
   // Fungsi untuk validasi login

@@ -94,16 +94,13 @@ class _BerandaPageState extends State<BerandaPage> {
               // Logo dan Sambutan
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.report_problem,
-                      color: Color(0xFF001F53),
-                      size: 24,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/logo.png',
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -446,6 +443,11 @@ class _BerandaPageState extends State<BerandaPage> {
   }
 
   void _showReportDetail(Map<String, dynamic> report) {
+    final status = _statusColors.firstWhere(
+          (s) => s['status'] == report['status'],
+      orElse: () => _statusColors.first,
+    )['text'] as String;
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -458,16 +460,18 @@ class _BerandaPageState extends State<BerandaPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
+              // Header dengan judul laporan
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Detail Laporan',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                  Expanded(
+                    child: Text(
+                      report['title'],
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -478,31 +482,87 @@ class _BerandaPageState extends State<BerandaPage> {
               ),
               const Divider(),
 
-              // Content
-              _buildDetailItem('Judul', report['title']),
-              _buildDetailItem('Deskripsi', report['description']),
-              _buildDetailItem('Lokasi', report['province_name']),
-              _buildDetailItem('Kota/Kabupaten', report['city_name']),
-              _buildDetailItem('Alamat', report['address']),
-              _buildDetailItem('Kategori', report['category_name']),
-              _buildDetailItem('Instansi Tujuan', report['agency_name']),
-              _buildDetailItem('Pelapor', report['is_anonymous'] == 1
-                  ? 'Anonim'
-                  : report['reporter_name']),
-              _buildDetailItem('Status', _statusColors.firstWhere(
-                    (s) => s['status'] == report['status'],
-                orElse: () => _statusColors.first,
-              )['text'] as String),
+              // Status
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _statusColors.firstWhere(
+                        (s) => s['status'] == report['status'],
+                    orElse: () => _statusColors.first,
+                  )['color'].withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  "⭐ $status",
+                  style: TextStyle(
+                    color: _statusColors.firstWhere(
+                          (s) => s['status'] == report['status'],
+                      orElse: () => _statusColors.first,
+                    )['color'],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              // Deskripsi
+              const SizedBox(height: 8),
+              Text(
+                "📝 ${report['description']}",
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+
+              // Lokasi
+              Text(
+                "📍 ${report['province_name']}, ${report['city_name']}",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "   ${report['address']}",
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+
+              // Kategori dan Instansi
+              Text(
+                "🏷️ ${report['category_name']}",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "🏢 ${report['agency_name']}",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Pelapor
+              Text(
+                "👤 ${report['is_anonymous'] == 1 ? 'Anonim' : report['reporter_name']}",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
 
               // Gambar
               if (report['image_path'] != null) ...[
                 const SizedBox(height: 16),
                 const Text(
-                  'Bukti',
+                  "📷 Bukti Laporan:",
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -518,33 +578,6 @@ class _BerandaPageState extends State<BerandaPage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.black87,
-            ),
-          ),
-        ],
       ),
     );
   }

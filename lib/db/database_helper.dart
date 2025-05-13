@@ -870,4 +870,21 @@ class DatabaseHelper {
     print('Login failed for email: $email'); // Debug print
     return false;
   }
+
+  // Fungsi untuk mengupdate password user
+  Future<bool> updatePassword(String email, String newPassword) async {
+    Database db = await instance.database;
+    try {
+      int count = await db.update(
+        'users',
+        {'password': newPassword},
+        where: 'email = ?',
+        whereArgs: [email],
+      );
+      return count > 0;
+    } catch (e) {
+      print('Error updating password: $e');
+      return false;
+    }
+  }
 }
