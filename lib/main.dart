@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'db/database_helper.dart';
 import 'routes.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Initialize FFI
   sqfliteFfiInit();
   // Change the default factory
   databaseFactory = databaseFactoryFfi;
+
+  // Reset and migrate database to latest version
+  await DatabaseHelper.instance.database;
 
   runApp(const LaporInApp());
 }

@@ -21,6 +21,13 @@ class DatabaseHelper {
     print('Database deleted');
   }
 
+  // Fungsi untuk reset dan migrasi database
+  Future<void> resetAndMigrateDatabase() async {
+    await deleteDatabase();
+    await database; // This will trigger recreation with new schema
+    print('Database reset and migrated to new version');
+  }
+
   // Getter untuk database
   Future<Database> get database async {
     if (!_isInitialized) {
@@ -110,8 +117,9 @@ class DatabaseHelper {
 
       final db = await openDatabase(
         path,
-        version: 1,
+        version: 2, // Increment version number
         onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
         onConfigure: (db) async {
           // Enable foreign keys
           await db.execute('PRAGMA foreign_keys = ON');
@@ -152,6 +160,13 @@ class DatabaseHelper {
   }
 
   // Buat table users dan tabel pendukung
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add image_path column to users table
+      await db.execute('ALTER TABLE users ADD COLUMN image_path TEXT');
+    }
+  }
+
   Future<void> _onCreate(Database db, int version) async {
     print('Creating database tables...');
 
@@ -209,7 +224,8 @@ class DatabaseHelper {
           gender TEXT NOT NULL,
           phone TEXT NOT NULL,
           email TEXT NOT NULL UNIQUE,
-          password TEXT NOT NULL
+          password TEXT NOT NULL,
+          image_path TEXT
         )
       ''');
 
@@ -875,6 +891,17 @@ class DatabaseHelper {
   Future<bool> updatePassword(String email, String newPassword) async {
     Database db = await instance.database;
     try {
+      // Dapatkan password lama
+      final user = await getUserByEmail(email);
+      if (user == null) {
+        return false;
+      }
+
+      // Cek apakah password baru sama dengan password lama
+      if (user['password'] == newPassword) {
+        throw Exception('Password baru tidak boleh sama dengan password lama');
+      }
+
       int count = await db.update(
         'users',
         {'password': newPassword},
@@ -885,6 +912,42 @@ class DatabaseHelper {
     } catch (e) {
       print('Error updating password: $e');
       return false;
+    }
+  }
+
+  // Fungsi untuk mengupdate profil user
+  Future<bool> updateUserProfile(String email, Map<String, dynamic> updates) async {
+    Database db = await instance.database;
+    try {
+      // Validasi nomor telepon jika diupdate
+      if (updates.containsKey('phone')) {
+        String phone = updates['phone'];
+        if (!phone.startsWith('08')) {
+          throw Exception('Nomor telepon harus dimulai dengan 08');
+        }
+        if (phone.length < 12 || phone.length > 13) {
+          throw Exception('Nomor telepon harus 12-13 digit');
+        }
+
+        // Cek apakah nomor telepon sudah digunakan user lain
+        final existingUser = await getUserByPhone(phone);
+        if (existingUser != null && existingUser['email'] != email) {
+          throw Exception('Nomor telepon sudah digunakan');
+        }
+      }
+
+      int count = await db.update(
+        'users',
+        updates,
+        where: 'email = ?',
+        whereArgs: [email],
+      );
+
+      print('Profile updated for email: $email with data: $updates');
+      return count > 0;
+    } catch (e) {
+      print('Error updating user profile: $e');
+      rethrow;
     }
   }
 }

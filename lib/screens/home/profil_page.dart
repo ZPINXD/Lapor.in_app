@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../db/database_helper.dart';
+import '../../screens/edit_profile_page.dart';
 
 class ProfilPage extends StatefulWidget {
   const ProfilPage({Key? key}) : super(key: key);
@@ -11,6 +13,7 @@ class ProfilPage extends StatefulWidget {
 class _ProfilPageState extends State<ProfilPage> {
   String _userName = '';
   String _userEmail = '';
+  Map<String, dynamic>? _userData;
 
   @override
   void initState() {
@@ -19,18 +22,13 @@ class _ProfilPageState extends State<ProfilPage> {
   }
 
   Future<void> _loadUserData() async {
-    print('Loading user data in ProfilPage...'); // Debug print
     final user = await DatabaseHelper.instance.getCurrentUser();
-    print('User data received in ProfilPage: $user'); // Debug print
     if (user != null && mounted) {
       setState(() {
+        _userData = user;
         _userName = user['name'] as String;
         _userEmail = user['email'] as String;
-        print('Username set to: $_userName'); // Debug print
-        print('Email set to: $_userEmail'); // Debug print
       });
-    } else {
-      print('No user data available or widget unmounted'); // Debug print
     }
   }
 
@@ -75,9 +73,15 @@ class _ProfilPageState extends State<ProfilPage> {
           children: [
             const SizedBox(height: 20),
             // Profile Picture
-            const CircleAvatar(
+            CircleAvatar(
               radius: 50,
-              backgroundImage: NetworkImage('https://picsum.photos/200'),
+              backgroundColor: Colors.grey[200],
+              backgroundImage: _userData?['image_path'] != null
+                  ? FileImage(File(_userData!['image_path'])) as ImageProvider
+                  : null,
+              child: _userData?['image_path'] == null
+                  ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                  : null,
             ),
             const SizedBox(height: 16),
             Text(
@@ -101,7 +105,17 @@ class _ProfilPageState extends State<ProfilPage> {
             _buildMenuItem(
               icon: Icons.person_outline,
               title: 'Edit Profil',
-              onTap: () {},
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const EditProfilePage(),
+                  ),
+                );
+                if (result == true) {
+                  _loadUserData();
+                }
+              },
             ),
             _buildMenuItem(
               icon: Icons.history,

@@ -156,11 +156,16 @@ class _BerandaPageState extends State<BerandaPage> {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: Colors.white,
-                child: Icon(
+                backgroundImage: _currentUser?['image_path'] != null
+                    ? FileImage(File(_currentUser!['image_path'])) as ImageProvider
+                    : null,
+                child: _currentUser?['image_path'] == null
+                    ? Icon(
                   Icons.person,
                   color: Colors.grey[600],
                   size: 32,
-                ),
+                )
+                    : null,
               ),
             ],
           ),

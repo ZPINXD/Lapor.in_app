@@ -35,4 +35,9 @@ flutter:
     - assets/image_landpage2.jpg
     - assets/image_landpage3.jpg
 
-
+  fonts:
+    - family: Sans-serif
+      fonts:
+        - asset: assets/fonts/OpenSans-Regular.ttf
+        - asset: assets/fonts/OpenSans-Bold.ttf
+          weight: 700

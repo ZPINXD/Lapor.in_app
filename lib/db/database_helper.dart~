@@ -209,7 +209,8 @@ class DatabaseHelper {
           gender TEXT NOT NULL,
           phone TEXT NOT NULL,
           email TEXT NOT NULL UNIQUE,
-          password TEXT NOT NULL
+          password TEXT NOT NULL,
+          image_path TEXT
         )
       ''');
 
@@ -869,5 +870,69 @@ class DatabaseHelper {
 
     print('Login failed for email: $email'); // Debug print
     return false;
+  }
+
+  // Fungsi untuk mengupdate password user
+  Future<bool> updatePassword(String email, String newPassword) async {
+    Database db = await instance.database;
+    try {
+      // Dapatkan password lama
+      final user = await getUserByEmail(email);
+      if (user == null) {
+        return false;
+      }
+
+      // Cek apakah password baru sama dengan password lama
+      if (user['password'] == newPassword) {
+        throw Exception('Password baru tidak boleh sama dengan password lama');
+      }
+
+      int count = await db.update(
+        'users',
+        {'password': newPassword},
+        where: 'email = ?',
+        whereArgs: [email],
+      );
+      return count > 0;
+    } catch (e) {
+      print('Error updating password: $e');
+      return false;
+    }
+  }
+
+  // Fungsi untuk mengupdate profil user
+  Future<bool> updateUserProfile(String email, Map<String, dynamic> updates) async {
+    Database db = await instance.database;
+    try {
+      // Validasi nomor telepon jika diupdate
+      if (updates.containsKey('phone')) {
+        String phone = updates['phone'];
+        if (!phone.startsWith('08')) {
+          throw Exception('Nomor telepon harus dimulai dengan 08');
+        }
+        if (phone.length < 12 || phone.length > 13) {
+          throw Exception('Nomor telepon harus 12-13 digit');
+        }
+
+        // Cek apakah nomor telepon sudah digunakan user lain
+        final existingUser = await getUserByPhone(phone);
+        if (existingUser != null && existingUser['email'] != email) {
+          throw Exception('Nomor telepon sudah digunakan');
+        }
+      }
+
+      int count = await db.update(
+        'users',
+        updates,
+        where: 'email = ?',
+        whereArgs: [email],
+      );
+
+      print('Profile updated for email: $email with data: $updates');
+      return count > 0;
+    } catch (e) {
+      print('Error updating user profile: $e');
+      rethrow;
+    }
   }
 }
