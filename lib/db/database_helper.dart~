@@ -21,6 +21,13 @@ class DatabaseHelper {
     print('Database deleted');
   }
 
+  // Fungsi untuk reset dan migrasi database
+  Future<void> resetAndMigrateDatabase() async {
+    await deleteDatabase();
+    await database; // This will trigger recreation with new schema
+    print('Database reset and migrated to new version');
+  }
+
   // Getter untuk database
   Future<Database> get database async {
     if (!_isInitialized) {
@@ -110,8 +117,9 @@ class DatabaseHelper {
 
       final db = await openDatabase(
         path,
-        version: 1,
+        version: 2, // Increment version number
         onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
         onConfigure: (db) async {
           // Enable foreign keys
           await db.execute('PRAGMA foreign_keys = ON');
@@ -152,6 +160,13 @@ class DatabaseHelper {
   }
 
   // Buat table users dan tabel pendukung
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add image_path column to users table
+      await db.execute('ALTER TABLE users ADD COLUMN image_path TEXT');
+    }
+  }
+
   Future<void> _onCreate(Database db, int version) async {
     print('Creating database tables...');
 
@@ -834,8 +849,10 @@ class DatabaseHelper {
         whereArgs: [id],
       );
     } catch (e) {
-      print('Error deleting landing image: $e');
-      rethrow;
+      final msg = e.toString().contains('5 gambar')
+          ? 'Kamu sudah menambahkan 5 gambar.'
+          : 'Gagal menambahkan gambar. Pastikan file masih tersedia.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 

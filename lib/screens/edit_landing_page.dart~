@@ -28,13 +28,12 @@ class _EditLandingPageState extends State<EditLandingPage> {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image == null) return;
-
       // Get application documents directory
       final appDir = await path_provider.getApplicationDocumentsDirectory();
       final fileName = path.basename(image.path);
 
       // Copy image to app directory
-      final savedImage = await File(image.path).copy('\${appDir.path}/\$fileName');
+      final savedImage = await File(image.path).copy('${appDir.path}/$fileName');
       final savedPath = savedImage.path;
 
       if (editId != null) {
@@ -88,12 +87,16 @@ class _EditLandingPageState extends State<EditLandingPage> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Batal'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.black, // Warna teks jadi hitam
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Hapus'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
+              foregroundColor: Colors.black, // Warna teks jadi hitam
             ),
           ),
         ],
@@ -112,7 +115,25 @@ class _EditLandingPageState extends State<EditLandingPage> {
       }
     }
   }
-
+  void _showSuccessDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Berhasil'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: Colors.green, // optional: to improve contrast
+            ),
+          ),
+        ], // optional: for contrast
+      ),
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -123,17 +144,10 @@ class _EditLandingPageState extends State<EditLandingPage> {
         ),
         backgroundColor: const Color(0xFF001F53),
         iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.logout,
-              color: Colors.red,
-            ),
-            onPressed: () {
-              Navigator.of(context).pushNamedAndRemoveUntil('/splash', (route) => false);
-            },
-          ),
-        ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _imagesFuture,

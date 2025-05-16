@@ -28,13 +28,12 @@ class _EditLandingPageState extends State<EditLandingPage> {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image == null) return;
-
       // Get application documents directory
       final appDir = await path_provider.getApplicationDocumentsDirectory();
       final fileName = path.basename(image.path);
 
       // Copy image to app directory
-      final savedImage = await File(image.path).copy('\${appDir.path}/\$fileName');
+      final savedImage = await File(image.path).copy('${appDir.path}/$fileName');
       final savedPath = savedImage.path;
 
       if (editId != null) {
@@ -70,6 +69,7 @@ class _EditLandingPageState extends State<EditLandingPage> {
             child: const Text('OK'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF001F53),
+              foregroundColor: Colors.white,
             ),
           ),
         ],
@@ -88,12 +88,16 @@ class _EditLandingPageState extends State<EditLandingPage> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Batal'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.black, // Warna teks jadi hitam
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Hapus'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
+              foregroundColor: Colors.black, // Warna teks jadi hitam
             ),
           ),
         ],
