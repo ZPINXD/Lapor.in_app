@@ -673,6 +673,7 @@ class DatabaseHelper {
     bool includeAnonymous = true,
     int? categoryId,
     String? status,
+    List<String>? statuses,
     DateTime? date,
   }) async {
     Database db = await instance.database;
@@ -711,6 +712,12 @@ class DatabaseHelper {
     if (status != null) {
       conditions.add('r.status = ?');
       args.add(status);
+    }
+
+    if (statuses != null && statuses.isNotEmpty) {
+      final placeholders = List.filled(statuses.length, '?').join(', ');
+      conditions.add('r.status IN ($placeholders)');
+      args.addAll(statuses);
     }
 
     if (date != null) {

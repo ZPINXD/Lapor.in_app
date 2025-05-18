@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../screens/edit_laporan_admin.dart';
 
 class AdminPage extends StatelessWidget {
   const AdminPage({Key? key}) : super(key: key);
@@ -81,7 +82,11 @@ class AdminPage extends StatelessWidget {
             ),
             // Laporan Menu
             GestureDetector(
-              onTap: () => _showComingSoon(context),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const EditLaporanAdminPage()),
+                );
+              },
               child: Card(
                 color: cardBackground,
                 shape: RoundedRectangleBorder(

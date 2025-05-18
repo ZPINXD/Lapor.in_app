@@ -11,22 +11,9 @@ class DatabaseHelper {
   static Database? _database;
   static bool _isInitialized = false;
 
-  // Fungsi untuk menghapus database
-  Future<void> deleteDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'laporin.db');
-    await databaseFactory.deleteDatabase(path);
-    _database = null;
-    _isInitialized = false;
-    print('Database deleted');
-  }
 
-  // Fungsi untuk reset dan migrasi database
-  Future<void> resetAndMigrateDatabase() async {
-    await deleteDatabase();
-    await database; // This will trigger recreation with new schema
-    print('Database reset and migrated to new version');
-  }
+
+
 
   // Getter untuk database
   Future<Database> get database async {
@@ -43,14 +30,6 @@ class DatabaseHelper {
     }
 
     return _database!;
-  }
-
-  // Reset database - hanya digunakan saat diperlukan
-  Future<void> resetDatabase() async {
-    await deleteDatabase();
-    _database = await _initDatabase();
-    _isInitialized = true;
-    await _verifyDatabaseIntegrity(_database!);
   }
 
   // Verifikasi integritas database
@@ -801,16 +780,6 @@ class DatabaseHelper {
         whereArgs: [id],
       );
 
-      if (oldImage.isNotEmpty) {
-        final oldPath = oldImage.first['imagePath'] as String;
-        if (!oldPath.startsWith('assets/')) {
-          final oldFile = File(oldPath);
-          if (await oldFile.exists()) {
-            await oldFile.delete();
-          }
-        }
-      }
-
       return await db.update(
         'landing_images',
         {'imagePath': newPath},
@@ -849,10 +818,8 @@ class DatabaseHelper {
         whereArgs: [id],
       );
     } catch (e) {
-      final msg = e.toString().contains('5 gambar')
-          ? 'Kamu sudah menambahkan 5 gambar.'
-          : 'Gagal menambahkan gambar. Pastikan file masih tersedia.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      print('Error deleting landing image: $e');
+      rethrow;
     }
   }
 

@@ -12,10 +12,8 @@ class BerandaPage extends StatefulWidget {
 
 class _BerandaPageState extends State<BerandaPage> {
   final List<Map<String, dynamic>> _statusColors = [
-    {'status': 'pending', 'color': const Color(0xFF3B82F6), 'text': 'Pending'},
     {'status': 'proses', 'color': const Color(0xFFF59E0B), 'text': 'Diproses'},
     {'status': 'selesai', 'color': const Color(0xFF10B981), 'text': 'Selesai'},
-    {'status': 'dibatalkan', 'color': const Color(0xFFEF4444), 'text': 'Dibatalkan'},
   ];
 
   String? _selectedStatus;
@@ -25,10 +23,34 @@ class _BerandaPageState extends State<BerandaPage> {
   Map<String, dynamic>? _currentUser;
   List<Map<DateTime, int>> _timelineData = [];
 
+  bool _hasShownSuccessMessage = false;
+
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasShownSuccessMessage) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null && args['showSuccessMessage'] == true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Laporan berhasil dikirim'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          _hasShownSuccessMessage = true;
+          // Navigate to same route without arguments to clear them
+          Navigator.of(context).pushReplacementNamed('/main');
+        });
+      }
+    }
   }
 
   Future<void> _loadInitialData() async {
@@ -37,8 +59,10 @@ class _BerandaPageState extends State<BerandaPage> {
       // Load user data
       final user = await DatabaseHelper.instance.getCurrentUser();
 
-      // Load reports
-      final reports = await DatabaseHelper.instance.getAllReports();
+      // Load reports with status 'proses' and 'selesai' only
+      final reports = await DatabaseHelper.instance.getAllReports(
+        statuses: ['proses', 'selesai'],
+      );
 
       // Load timeline data
       final db = await DatabaseHelper.instance.database;
@@ -78,7 +102,7 @@ class _BerandaPageState extends State<BerandaPage> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       decoration: const BoxDecoration(
         color: Color(0xFF001F53),
         borderRadius: BorderRadius.only(
@@ -153,76 +177,143 @@ class _BerandaPageState extends State<BerandaPage> {
                 ],
               ),
               // Avatar
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.white,
-                backgroundImage: _currentUser?['image_path'] != null
-                    ? FileImage(File(_currentUser!['image_path'])) as ImageProvider
-                    : null,
-                child: _currentUser?['image_path'] == null
-                    ? Icon(
-                  Icons.person,
-                  color: Colors.grey[600],
-                  size: 32,
-                )
-                    : null,
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                ),
+                child: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.white,
+                  backgroundImage: _currentUser?['image_path'] != null
+                      ? FileImage(File(_currentUser!['image_path'])) as ImageProvider
+                      : null,
+                  child: _currentUser?['image_path'] == null
+                      ? Icon(
+                    Icons.person,
+                    color: Colors.grey[600],
+                    size: 32,
+                  )
+                      : null,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 24),
           // Filter Section
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
               children: [
-                const Icon(Icons.filter_list, color: Color(0xFF001F53)),
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: _selectedStatus,
-                  hint: const Text('Filter Status'),
-                  underline: const SizedBox(),
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text('Semua Status'),
-                    ),
-                    ..._statusColors.map((status) {
-                      return DropdownMenuItem(
-                        value: status['status'] as String,
-                        child: Text(status['text'] as String),
-                      );
-                    }),
-                  ],
-                  onChanged: (value) {
-                    setState(() => _selectedStatus = value);
-                    _filterReports();
-                  },
-                ),
-                const SizedBox(width: 16),
-                TextButton.icon(
-                  icon: const Icon(Icons.calendar_today, size: 20),
-                  label: Text(
-                    _selectedDate == null
-                        ? 'Pilih Tanggal'
-                        : DateFormat('dd/MM/yyyy').format(_selectedDate!),
-                    style: const TextStyle(fontSize: 14),
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.filter_list, color: Color(0xFF001F53), size: 16),
+                      const SizedBox(width: 6),
+                      DropdownButton<String>(
+                        value: _selectedStatus,
+                        hint: const Text(
+                          'Filter Status',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        underline: const SizedBox(),
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF001F53)),
+                        items: [
+                          DropdownMenuItem(
+                            value: null,
+                            child: Text(
+                              'Semua Status',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          ..._statusColors.map((status) {
+                            Color iconColor = Colors.grey;
+                            IconData iconData = Icons.circle;
+                            switch (status['status']) {
+                              case 'pending':
+                                iconColor = Colors.grey;
+                                iconData = Icons.circle;
+                                break;
+                              case 'proses':
+                                iconColor = Colors.amber;
+                                iconData = Icons.hourglass_top;
+                                break;
+                              case 'selesai':
+                                iconColor = Colors.green;
+                                iconData = Icons.check_circle;
+                                break;
+                              case 'dibatalkan':
+                                iconColor = Colors.red;
+                                iconData = Icons.cancel;
+                                break;
+                            }
+                            return DropdownMenuItem(
+                              value: status['status'] as String,
+                              child: Row(
+                                children: [
+                                  Icon(iconData, size: 14, color: iconColor),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    status['text'] as String,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _selectedStatus = value);
+                          _filterReports();
+                        },
+                      ),
+                    ],
                   ),
-                  onPressed: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate ?? DateTime.now(),
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now(),
-                    );
-                    if (date != null) {
-                      setState(() => _selectedDate = date);
-                      _filterReports();
-                    }
-                  },
+                ),
+                Row(
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.calendar_today, size: 16),
+                      label: Text(
+                        _selectedDate == null
+                            ? 'Pilih Tanggal'
+                            : DateFormat('dd/MM/yyyy').format(_selectedDate!),
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF001F53)),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setState(() => _selectedDate = date);
+                          _filterReports();
+                        }
+                      },
+                    ),
+                    if (_selectedDate != null)
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 18, color: Color(0xFF001F53)),
+                        onPressed: () {
+                          setState(() {
+                            _selectedDate = null;
+                          });
+                          _filterReports();
+                        },
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -331,6 +422,7 @@ class _BerandaPageState extends State<BerandaPage> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
+      color: Colors.white,
       child: InkWell(
         onTap: () => _showReportDetail(report),
         child: Padding(
@@ -383,12 +475,30 @@ class _BerandaPageState extends State<BerandaPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.report,
+                          size: 18,
+                          color: Color(0xFF001F53),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          report['title'],
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
                     Text(
-                      report['title'],
+                      DateFormat('dd/MM/yyyy').format(DateTime.parse(report['created_at'])),
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        fontSize: 12,
+                        color: Colors.grey,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -415,13 +525,34 @@ class _BerandaPageState extends State<BerandaPage> {
                             color: (statusData['color'] as Color).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(
-                            statusData['text'] as String,
-                            style: TextStyle(
-                              color: statusData['color'] as Color,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                statusData['status'] == 'pending'
+                                    ? Icons.circle
+                                    : statusData['status'] == 'proses'
+                                    ? Icons.hourglass_top
+                                    : statusData['status'] == 'selesai'
+                                    ? Icons.check_circle
+                                    : Icons.cancel,
+                                size: 14,
+                                color: statusData['status'] == 'pending'
+                                    ? Colors.grey
+                                    : statusData['color'] as Color,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                statusData['text'] as String,
+                                style: TextStyle(
+                                  color: statusData['status'] == 'pending'
+                                      ? Colors.grey
+                                      : statusData['color'] as Color,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
 
@@ -483,6 +614,7 @@ class _BerandaPageState extends State<BerandaPage> {
               // Content
               _buildDetailItem('Judul', report['title']),
               _buildDetailItem('Deskripsi', report['description']),
+              _buildDetailItem('Tanggal', DateFormat('dd/MM/yyyy').format(DateTime.parse(report['created_at']))),
               _buildDetailItem('Lokasi', report['province_name']),
               _buildDetailItem('Kota/Kabupaten', report['city_name']),
               _buildDetailItem('Alamat', report['address']),
@@ -617,7 +749,10 @@ class _BerandaPageState extends State<BerandaPage> {
                 : _reports.isEmpty
                 ? const SliverFillRemaining(
               child: Center(
-                child: Text('Belum ada laporan'),
+                child: Text(
+                  'Belum ada laporan',
+                  style: TextStyle(color: Colors.black),
+                ),
               ),
             )
                 : SliverList(

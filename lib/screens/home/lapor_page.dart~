@@ -122,7 +122,10 @@ class _LaporPageState extends State<LaporPage> {
   Future<void> _submitReport() async {
     if (!_reportData.isStep3Valid) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Harap centang pernyataan kebenaran laporan')),
+        const SnackBar(
+          content: Text('Harap centang pernyataan kebenaran laporan'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -133,7 +136,7 @@ class _LaporPageState extends State<LaporPage> {
       final user = await DatabaseHelper.instance.getCurrentUser();
       if (user == null) throw Exception('User tidak ditemukan');
 
-      await DatabaseHelper.instance.createReport(
+      final report = await DatabaseHelper.instance.createReport(
         userId: user['id'] as int,
         title: _reportData.title!,
         description: _reportData.description!,
@@ -147,20 +150,34 @@ class _LaporPageState extends State<LaporPage> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Laporan berhasil dibuat')),
-        );
-        Navigator.pop(context);
+        setState(() => _isLoading = false);
+
+        if (mounted) {
+          // Navigate to main screen with beranda tab and success flag
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/main',
+                (route) => false,
+            arguments: {'initialIndex': 0, 'showSuccessMessage': true}, // 0 adalah index beranda
+          );
+          // Clear the arguments after navigation to prevent repeated success message
+          Future.delayed(Duration.zero, () {
+            ModalRoute.of(context)?.settings = RouteSettings(
+              name: ModalRoute.of(context)?.settings.name,
+              arguments: null,
+            );
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
         setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }

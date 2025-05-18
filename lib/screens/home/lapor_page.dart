@@ -152,26 +152,14 @@ class _LaporPageState extends State<LaporPage> {
       if (mounted) {
         setState(() => _isLoading = false);
 
-        // Tampilkan snackbar sukses
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Laporan berhasil dikirim'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-
-        // Tunggu snackbar selesai sebelum navigasi
-        await Future.delayed(const Duration(seconds: 2));
-
         if (mounted) {
-          // Navigate to main screen with beranda tab
-          Navigator.pushNamedAndRemoveUntil(
+          // Navigate to main screen with beranda tab and success flag
+          Navigator.pushReplacementNamed(
             context,
             '/main',
-                (route) => false,
-            arguments: {'initialIndex': 0}, // 0 adalah index beranda
+            arguments: {'initialIndex': 0, 'showSuccessMessage': true}, // 0 adalah index beranda
           );
+          // No need to clear arguments as pushReplacementNamed replaces the route
         }
       }
     } catch (e) {

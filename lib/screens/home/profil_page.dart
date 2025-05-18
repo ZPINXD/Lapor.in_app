@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../db/database_helper.dart';
 import '../../screens/edit_profile_page.dart';
+import '../../screens/home/riwayat_laporan.dart';
 
 class ProfilPage extends StatefulWidget {
   const ProfilPage({Key? key}) : super(key: key);
@@ -120,7 +121,12 @@ class _ProfilPageState extends State<ProfilPage> {
             _buildMenuItem(
               icon: Icons.history,
               title: 'Riwayat Laporan',
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const RiwayatLaporanPage()),
+                );
+              },
             ),
             _buildMenuItem(
               icon: Icons.settings_outlined,
@@ -142,9 +148,39 @@ class _ProfilPageState extends State<ProfilPage> {
             // Logout Button
             ElevatedButton(
               onPressed: () {
-                // Clear current user data
-                DatabaseHelper.instance.setCurrentUserEmail(null);
-                Navigator.of(context).pushReplacementNamed('/login');
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text('Konfirmasi Logout'),
+                      content: const Text('Apakah yakin ingin keluar dari aplikasi Lapor.in?'),
+                      actions: <Widget>[
+                        TextButton(
+                          child: const Text('Batal'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                        TextButton(
+                          child: const Text('Ya'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () {
+                            DatabaseHelper.instance.setCurrentUserEmail(null);
+                            Navigator.of(context).pop();
+                            Navigator.of(context).pushReplacementNamed('/login');
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,

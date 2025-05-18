@@ -180,7 +180,7 @@ class _LoginPageState extends State<LoginPage> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () {
-                    // TODO: Implement forgot password
+                    Navigator.of(context).pushNamed('/lupapass');
                   },
                   child: const Text(
                     'Lupa kata sandi?',
