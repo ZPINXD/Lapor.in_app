@@ -4,7 +4,24 @@ import 'edit_laporan_admin.dart';
 class AdminPage extends StatelessWidget {
   const AdminPage({Key? key}) : super(key: key);
 
-
+  void _showComingSoon(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Coming Soon'),
+        content: const Text('Fitur ini akan segera hadir.'),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD4A24C),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,6 +150,7 @@ class AdminPage extends StatelessWidget {
                   ),
                   // User Menu
                   GestureDetector(
+                    onTap: () => _showComingSoon(context),
                     child: Card(
                       color: cardBackground,
                       shape: RoundedRectangleBorder(
@@ -142,7 +160,7 @@ class AdminPage extends StatelessWidget {
                       shadowColor: Colors.black26,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
-
+                        onTap: () => _showComingSoon(context),
                         splashColor: accentColor.withOpacity(0.3),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -164,7 +182,7 @@ class AdminPage extends StatelessWidget {
                   ),
                   // Instansi Menu
                   GestureDetector(
-
+                    onTap: () => _showComingSoon(context),
                     child: Card(
                       color: cardBackground,
                       shape: RoundedRectangleBorder(
@@ -174,6 +192,7 @@ class AdminPage extends StatelessWidget {
                       shadowColor: Colors.black26,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
+                        onTap: () => _showComingSoon(context),
                         splashColor: accentColor.withOpacity(0.3),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,

@@ -74,15 +74,40 @@ class _ProfilPageState extends State<ProfilPage> {
           children: [
             const SizedBox(height: 20),
             // Profile Picture
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.grey[200],
-              backgroundImage: _userData?['image_path'] != null
-                  ? FileImage(File(_userData!['image_path'])) as ImageProvider
-                  : null,
-              child: _userData?['image_path'] == null
-                  ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                  : null,
+            GestureDetector(
+              onTap: () {
+                if (_userData?['image_path'] != null) {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return Dialog(
+                        backgroundColor: Colors.transparent,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: InteractiveViewer(
+                            child: Image.file(
+                              File(_userData!['image_path']),
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }
+              },
+              child: CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.grey[200],
+                backgroundImage: _userData?['image_path'] != null
+                    ? FileImage(File(_userData!['image_path'])) as ImageProvider
+                    : null,
+                child: _userData?['image_path'] == null
+                    ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                    : null,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -157,20 +182,12 @@ class _ProfilPageState extends State<ProfilPage> {
                       actions: <Widget>[
                         TextButton(
                           child: const Text('Batal'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey,
-                            foregroundColor: Colors.white,
-                          ),
                           onPressed: () {
                             Navigator.of(context).pop();
                           },
                         ),
                         TextButton(
                           child: const Text('Ya'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
                           onPressed: () {
                             DatabaseHelper.instance.setCurrentUserEmail(null);
                             Navigator.of(context).pop();

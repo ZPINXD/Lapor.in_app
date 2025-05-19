@@ -480,11 +480,34 @@ class _LaporPageState extends State<LaporPage> {
               )
                   : Stack(
                 children: [
-                  Image.file(
-                    File(_reportData.imagePath!),
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
+                  GestureDetector(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return Dialog(
+                            backgroundColor: Colors.transparent,
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: InteractiveViewer(
+                                child: Image.file(
+                                  File(_reportData.imagePath!),
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    child: Image.file(
+                      File(_reportData.imagePath!),
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   Positioned(
                     top: 8,
@@ -763,11 +786,34 @@ class _LaporPageState extends State<LaporPage> {
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.file(
-                File(_reportData.imagePath!),
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
+              child: GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return Dialog(
+                        backgroundColor: Colors.transparent,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: InteractiveViewer(
+                            child: Image.file(
+                              File(_reportData.imagePath!),
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+                child: Image.file(
+                  File(_reportData.imagePath!),
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ],
@@ -908,6 +954,7 @@ class _LaporPageState extends State<LaporPage> {
                   _currentStep == 3 ? 'Kirim Laporan' : 'Selanjutnya',
                   style: const TextStyle(
                     fontSize: 16,
+                    color: Color(0xFF001F53),
                     fontWeight: FontWeight.bold,
                   ),
                 ),

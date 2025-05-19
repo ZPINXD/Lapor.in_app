@@ -69,6 +69,7 @@ class _EditLandingPageState extends State<EditLandingPage> {
             child: const Text('OK'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF001F53),
+              foregroundColor: Colors.white,
             ),
           ),
         ],
@@ -115,25 +116,7 @@ class _EditLandingPageState extends State<EditLandingPage> {
       }
     }
   }
-  void _showSuccessDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Berhasil'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white,
-              backgroundColor: Colors.green, // optional: to improve contrast
-            ),
-          ),
-        ], // optional: for contrast
-      ),
-    );
-  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

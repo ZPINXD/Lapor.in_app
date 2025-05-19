@@ -176,42 +176,24 @@ class _EditLandingPageState extends State<EditLandingPage> {
                             showDialog(
                               context: context,
                               builder: (context) => Dialog(
-                                child: Container(
-                                  width: MediaQuery.of(context).size.width * 0.8,
-                                  height: MediaQuery.of(context).size.height * 0.6,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Stack(
-                                      children: [
-                                        Image.file(
-                                          File(image['imagePath']),
-                                          fit: BoxFit.contain,
-                                          width: double.infinity,
-                                          height: double.infinity,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            return const Center(
-                                              child: Icon(
-                                                Icons.error_outline,
-                                                color: Colors.red,
-                                                size: 48,
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                        Positioned(
-                                          top: 8,
-                                          right: 8,
-                                          child: IconButton(
-                                            icon: const Icon(Icons.close),
-                                            color: Colors.white,
-                                            onPressed: () => Navigator.of(context).pop(),
+                                backgroundColor: Colors.transparent,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: InteractiveViewer(
+                                    child: Image.file(
+                                      File(image['imagePath']),
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return const Center(
+                                          child: Icon(
+                                            Icons.error_outline,
+                                            color: Colors.red,
+                                            size: 48,
                                           ),
-                                        ),
-                                      ],
+                                        );
+                                      },
                                     ),
                                   ),
                                 ),

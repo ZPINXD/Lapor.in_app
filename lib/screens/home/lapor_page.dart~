@@ -154,19 +154,12 @@ class _LaporPageState extends State<LaporPage> {
 
         if (mounted) {
           // Navigate to main screen with beranda tab and success flag
-          Navigator.pushNamedAndRemoveUntil(
+          Navigator.pushReplacementNamed(
             context,
             '/main',
-                (route) => false,
             arguments: {'initialIndex': 0, 'showSuccessMessage': true}, // 0 adalah index beranda
           );
-          // Clear the arguments after navigation to prevent repeated success message
-          Future.delayed(Duration.zero, () {
-            ModalRoute.of(context)?.settings = RouteSettings(
-              name: ModalRoute.of(context)?.settings.name,
-              arguments: null,
-            );
-          });
+          // No need to clear arguments as pushReplacementNamed replaces the route
         }
       }
     } catch (e) {
@@ -487,11 +480,34 @@ class _LaporPageState extends State<LaporPage> {
               )
                   : Stack(
                 children: [
-                  Image.file(
-                    File(_reportData.imagePath!),
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
+                  GestureDetector(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return Dialog(
+                            backgroundColor: Colors.transparent,
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: InteractiveViewer(
+                                child: Image.file(
+                                  File(_reportData.imagePath!),
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    child: Image.file(
+                      File(_reportData.imagePath!),
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   Positioned(
                     top: 8,
@@ -770,11 +786,34 @@ class _LaporPageState extends State<LaporPage> {
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.file(
-                File(_reportData.imagePath!),
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
+              child: GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return Dialog(
+                        backgroundColor: Colors.transparent,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: InteractiveViewer(
+                            child: Image.file(
+                              File(_reportData.imagePath!),
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+                child: Image.file(
+                  File(_reportData.imagePath!),
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ],

@@ -58,7 +58,12 @@ class _EditLaporanAdminPageState extends State<EditLaporanAdminPage> {
   List<String> _getValidStatusOptions(String currentStatus) {
     final index = _statusOptions.indexOf(currentStatus);
     if (index == -1) return _statusOptions;
-    return _statusOptions.sublist(index);
+    List<String> options = _statusOptions.sublist(index);
+    // Jika status saat ini adalah 'selesai', hilangkan opsi 'dibatalkan'
+    if (currentStatus == 'selesai') {
+      options = options.where((status) => status != 'dibatalkan').toList();
+    }
+    return options;
   }
 
   // Fungsi untuk mengupdate status laporan
@@ -137,7 +142,10 @@ class _EditLaporanAdminPageState extends State<EditLaporanAdminPage> {
   // Widget untuk filter tanggal
   Widget _buildDateFilter() {
     return TextButton(
-      child: Text(_filterDate == null ? 'Filter Tanggal' : _filterDate!.toLocal().toString().split(' ')[0]),
+      child: Text(
+        _filterDate == null ? 'Filter Tanggal' : _filterDate!.toLocal().toString().split(' ')[0],
+        style: const TextStyle(color: Colors.white),
+      ),
       onPressed: () async {
         final picked = await showDatePicker(
           context: context,
@@ -196,11 +204,38 @@ class _EditLaporanAdminPageState extends State<EditLaporanAdminPage> {
             if (report['image_path'] != null && report['image_path'].toString().isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  File(report['image_path']),
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+                child: GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return Dialog(
+                          backgroundColor: Colors.transparent,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: InteractiveViewer(
+                              child: SizedBox(
+                                width: 900,
+                                height: 900,
+                                child: Image.file(
+                                  File(report['image_path']),
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  child: Image.file(
+                    File(report['image_path']),
+                    height: 150,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             const SizedBox(height: 12),
