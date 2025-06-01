@@ -250,7 +250,9 @@ class _DonasiInfoPageState extends State<DonasiInfoPage> {
           ],
         ),
       ),
-      bottomNavigationBar: Padding(
+      bottomNavigationBar: widget.report['status'] == 'selesai'
+          ? null
+          : Padding(
         padding: const EdgeInsets.all(16),
         child: SizedBox(
           width: double.infinity,

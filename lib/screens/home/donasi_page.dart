@@ -55,7 +55,10 @@ class _DonasiPageState extends State<DonasiPage> {
         return;
       }
 
-      final reports = await dbHelper.getAllReports(categoryId: bencanaCategory['id'], status: 'proses');
+      // Ambil laporan dengan status 'proses' dan 'selesai'
+      final reportsProses = await dbHelper.getAllReports(categoryId: bencanaCategory['id'], status: 'proses');
+      final reportsSelesai = await dbHelper.getAllReports(categoryId: bencanaCategory['id'], status: 'selesai');
+      final reports = [...reportsProses, ...reportsSelesai];
       setState(() {
         _bencanaReports = reports;
         _isLoading = false;
@@ -121,154 +124,199 @@ class _DonasiPageState extends State<DonasiPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             margin: const EdgeInsets.only(bottom: 16),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black, width: 2),
-                        ),
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundImage: (reporterImage != null && reporterImage.isNotEmpty)
-                              ? (reporterImage.startsWith('http') || reporterImage.startsWith('https')
-                              ? NetworkImage(reporterImage)
-                              : FileImage(File(reporterImage)) as ImageProvider)
-                              : null,
-                          child: (reporterImage == null || reporterImage.isEmpty)
-                              ? Text(
-                            reporterName.isNotEmpty ? reporterName[0].toUpperCase() : 'A',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-                          )
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text(
-                            reporterName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.black, width: 2),
+                            ),
+                            child: CircleAvatar(
+                              radius: 20,
+                              backgroundImage: (reporterImage != null && reporterImage.isNotEmpty)
+                                  ? (reporterImage.startsWith('http') || reporterImage.startsWith('https')
+                                  ? NetworkImage(reporterImage)
+                                  : FileImage(File(reporterImage)) as ImageProvider)
+                                  : null,
+                              child: (reporterImage == null || reporterImage.isEmpty)
+                                  ? Text(
+                                reporterName.isNotEmpty ? reporterName[0].toUpperCase() : 'A',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                              )
+                                  : null,
                             ),
                           ),
-                          Text(
-                            date,
-                            style: const TextStyle(
-                              color: Colors.black,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      reporterName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    Text(
+                                      date,
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 8),
+                                // Removed inline badge here as per user feedback
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Lokasi: $location',
-                    style: const TextStyle(
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (imagePath != null && imagePath.isNotEmpty)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: GestureDetector(
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => Dialog(
-                              child: (imagePath.startsWith('http') || imagePath.startsWith('https'))
-                                  ? Image.network(
-                                imagePath,
-                                fit: BoxFit.contain,
-                              )
-                                  : Image.file(
-                                File(imagePath),
-                                fit: BoxFit.contain,
+                      const SizedBox(height: 16),
+                      // Removed badge here, will add as Positioned
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Lokasi: $location',
+                        style: const TextStyle(
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (imagePath != null && imagePath.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: GestureDetector(
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => Dialog(
+                                  child: (imagePath.startsWith('http') || imagePath.startsWith('https'))
+                                      ? Image.network(
+                                    imagePath,
+                                    fit: BoxFit.contain,
+                                  )
+                                      : Image.file(
+                                    File(imagePath),
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: (imagePath.startsWith('http') || imagePath.startsWith('https'))
+                                ? Image.network(
+                              imagePath,
+                              height: 150,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                height: 150,
+                                color: Colors.grey[300],
+                                child: const Center(child: Icon(Icons.broken_image)),
+                              ),
+                            )
+                                : Image.file(
+                              File(imagePath),
+                              height: 150,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD4A24C),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DonasiInfoPage(
+                                      report: report,
+                                      userEmail: _userEmail,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                report['status'] == 'selesai' ? 'Lihat Detail' : 'Donasi',
+                                style: const TextStyle(color: Color(0xFF001F53)),
                               ),
                             ),
-                          );
-                        },
-                        child: (imagePath.startsWith('http') || imagePath.startsWith('https'))
-                            ? Image.network(
-                          imagePath,
-                          height: 150,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            height: 150,
-                            color: Colors.grey[300],
-                            child: const Center(child: Icon(Icons.broken_image)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (report['status'] == 'selesai')
+                  Positioned(
+                    top: 20,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD9F0E6),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.check_circle,
+                            color: Color(0xFF4CAF50),
+                            size: 14,
                           ),
-                        )
-                            : Image.file(
-                          File(imagePath),
-                          height: 150,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: (report['status'] == 'selesai')
-                        ? Text(
-                      'Total Donasi: Rp 0',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    )
-                        : ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD4A24C),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DonasiInfoPage(
-                              report: report,
-                              userEmail: _userEmail,
+                          SizedBox(width: 6),
+                          Text(
+                            'Selesai',
+                            style: TextStyle(
+                              color: Color(0xFF4CAF50),
+                              fontWeight: FontWeight.normal,
+                              fontSize: 12,
                             ),
                           ),
-                        );
-                      },
-                      child: const Text(
-                        'Donasi',
-                        style: TextStyle(color: Color(0xFF001F53)),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
           );
         },
