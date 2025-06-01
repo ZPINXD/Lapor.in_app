@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../db/database_helper.dart';
 import '../../screens/edit_profile_page.dart';
 import '../../screens/home/riwayat_laporan.dart';
+import '../../screens/home/donasi_info_page.dart';
 
 class ProfilPage extends StatefulWidget {
   const ProfilPage({Key? key}) : super(key: key);
@@ -73,7 +74,6 @@ class _ProfilPageState extends State<ProfilPage> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            // Profile Picture
             GestureDetector(
               onTap: () {
                 if (_userData?['image_path'] != null) {
@@ -126,8 +126,6 @@ class _ProfilPageState extends State<ProfilPage> {
               ),
             ),
             const SizedBox(height: 32),
-
-            // Menu Items
             _buildMenuItem(
               icon: Icons.person_outline,
               title: 'Edit Profil',
@@ -154,9 +152,19 @@ class _ProfilPageState extends State<ProfilPage> {
               },
             ),
             _buildMenuItem(
-              icon: Icons.settings_outlined,
-              title: 'Pengaturan',
-              onTap: () {},
+              icon: Icons.monetization_on_outlined,
+              title: 'Riwayat Donasi',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DonasiInfoPage(
+                      report: {}, // Pass empty or appropriate data if needed
+                      userEmail: _userEmail,
+                    ),
+                  ),
+                );
+              },
             ),
             _buildMenuItem(
               icon: Icons.help_outline,
@@ -169,8 +177,6 @@ class _ProfilPageState extends State<ProfilPage> {
               onTap: () {},
             ),
             const SizedBox(height: 32),
-
-            // Logout Button
             ElevatedButton(
               onPressed: () {
                 showDialog(

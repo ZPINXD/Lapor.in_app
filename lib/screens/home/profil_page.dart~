@@ -1,0 +1,432 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import '../../db/database_helper.dart';
+import '../../screens/edit_profile_page.dart';
+import '../../screens/home/riwayat_laporan.dart';
+
+class ProfilPage extends StatefulWidget {
+  const ProfilPage({Key? key}) : super(key: key);
+
+  @override
+  _ProfilPageState createState() => _ProfilPageState();
+}
+
+class _ProfilPageState extends State<ProfilPage> {
+  String _userName = '';
+  String _userEmail = '';
+  Map<String, dynamic>? _userData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = await DatabaseHelper.instance.getCurrentUser();
+    if (user != null && mounted) {
+      setState(() {
+        _userData = user;
+        _userName = user['name'] as String;
+        _userEmail = user['email'] as String;
+      });
+    }
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFF001F53)),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Color(0xFF001F53),
+          fontSize: 16,
+        ),
+      ),
+      trailing: const Icon(
+        Icons.chevron_right,
+        color: Color(0xFF001F53),
+      ),
+      onTap: onTap,
+    );
+  }
+
+  import 'dart:io';
+  import 'package:flutter/material.dart';
+  import '../../db/database_helper.dart';
+  import '../../screens/edit_profile_page.dart';
+  import '../../screens/home/riwayat_laporan.dart';
+
+  class ProfilPage extends StatefulWidget {
+  const ProfilPage({Key? key}) : super(key: key);
+
+  @override
+  _ProfilPageState createState() => _ProfilPageState();
+  }
+
+  class _ProfilPageState extends State<ProfilPage> {
+  String _userName = '';
+  String _userEmail = '';
+  Map<String, dynamic>? _userData;
+  List<Map<String, dynamic>> _donations = [];
+
+  @override
+  void initState() {
+  super.initState();
+  _loadUserData();
+  _loadDonations();
+  }
+
+  Future<void> _loadUserData() async {
+  final user = await DatabaseHelper.instance.getCurrentUser();
+  if (user != null && mounted) {
+  setState(() {
+  _userData = user;
+  _userName = user['name'] as String;
+  _userEmail = user['email'] as String;
+  });
+  }
+  }
+
+  Future<void> _loadDonations() async {
+  final user = await DatabaseHelper.instance.getCurrentUser();
+  if (user != null && mounted) {
+  final userId = user['id'] as int;
+  final donations = await DatabaseHelper.instance.getDonationsByUser(userId);
+  setState(() {
+  _donations = donations;
+  });
+  }
+  }
+
+  Widget _buildMenuItem({
+  required IconData icon,
+  required String title,
+  required VoidCallback onTap,
+  }) {
+  return ListTile(
+  leading: Icon(icon, color: const Color(0xFF001F53)),
+  title: Text(
+  title,
+  style: const TextStyle(
+  color: Color(0xFF001F53),
+  fontSize: 16,
+  ),
+  ),
+  trailing: const Icon(
+  Icons.chevron_right,
+  color: Color(0xFF001F53),
+  ),
+  onTap: onTap,
+  );
+  }
+
+  String _formatDateTime(String dateTimeStr) {
+  try {
+  final dateTime = DateTime.parse(dateTimeStr);
+  final now = DateTime.now();
+  final difference = now.difference(dateTime);
+
+  if (difference.inDays > 0) {
+  return '${difference.inDays} hari yang lalu';
+  } else if (difference.inHours > 0) {
+  return '${difference.inHours} jam yang lalu';
+  } else if (difference.inMinutes > 0) {
+  return '${difference.inMinutes} menit yang lalu';
+  } else {
+  return 'Baru saja';
+  }
+  } catch (e) {
+  return dateTimeStr;
+  }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+  return Scaffold(
+  backgroundColor: Colors.white,
+  appBar: AppBar(
+  backgroundColor: const Color(0xFF001F53),
+  title: const Text(
+  'Profil',
+  style: TextStyle(color: Colors.white),
+  ),
+  automaticallyImplyLeading: false,
+  elevation: 0,
+  ),
+  body: SingleChildScrollView(
+  padding: const EdgeInsets.all(16),
+  child: Column(
+  children: [
+  const SizedBox(height: 20),
+  // Profile Picture
+  GestureDetector(
+  onTap: () {
+  if (_userData?['image_path'] != null) {
+  showDialog(
+  context: context,
+  builder: (BuildContext context) {
+  return Dialog(
+  backgroundColor: Colors.transparent,
+  child: GestureDetector(
+  onTap: () {
+  Navigator.of(context).pop();
+  },
+  child: InteractiveViewer(
+  child: Image.file(
+  File(_userData!['image_path']),
+  fit: BoxFit.contain,
+  ),
+  ),
+  ),
+  );
+  },
+  );
+  }
+  },
+  child: CircleAvatar(
+  radius: 50,
+  backgroundColor: Colors.grey[200],
+  backgroundImage: _userData?['image_path'] != null
+  ? FileImage(File(_userData!['image_path'])) as ImageProvider
+      : null,
+  child: _userData?['image_path'] == null
+  ? const Icon(Icons.person, size: 50, color: Colors.grey)
+      : null,
+  ),
+  ),
+  const SizedBox(height: 16),
+  Text(
+  _userName,
+  style: const TextStyle(
+  fontSize: 24,
+  fontWeight: FontWeight.bold,
+  color: Color(0xFF001F53),
+  ),
+  ),
+  Text(
+  _userEmail,
+  style: const TextStyle(
+  color: Colors.grey,
+  fontSize: 16,
+  ),
+  ),
+  const SizedBox(height: 32),
+
+  // Donation History Section
+  Align(
+  alignment: Alignment.centerLeft,
+  child: Text(
+  'Riwayat Donasi',
+  style: const TextStyle(
+  fontWeight: FontWeight.bold,
+  fontSize: 18,
+  color: Color(0xFF001F53),
+  ),
+  ),
+  ),
+  const SizedBox(height: 12),
+  _donations.isEmpty
+  ? const Text('Belum ada donasi')
+      : ListView.builder(
+  shrinkWrap: true,
+  physics: const NeverScrollableScrollPhysics(),
+  itemCount: _donations.length,
+  itemBuilder: (context, index) {
+  final donation = _donations[index];
+  final nominal = donation['nominal'] ?? 0;
+  final pesan = donation['pesan'] ?? '';
+  final createdAt = donation['created_at'] ?? '';
+  return ListTile(
+  title: Text('Rp ${nominal.toString().replaceAllMapped(RegExp(r"(\\d)(?=(\\d{3})+(?!\\d))"), (match) => "${match[1]}.")}'),
+  subtitle: Text(pesan),
+  trailing: Text(_formatDateTime(createdAt)),
+  );
+  },
+  ),
+  const SizedBox(height: 32),
+  =======
+  _buildMenuItem(
+  icon: Icons.person_outline,
+  title: 'Edit Profil',
+  onTap: () async {
+  final result = await Navigator.push(
+  context,
+  MaterialPageRoute(
+  builder: (context) => const EditProfilePage(),
+  ),
+  );
+  if (result == true) {
+  _loadUserData();
+  }
+  },
+  ),
+  _buildMenuItem(
+  icon: Icons.history,
+  title: 'Riwayat Laporan',
+  onTap: () {
+  Navigator.push(
+  context,
+  MaterialPageRoute(builder: (context) => const RiwayatLaporanPage()),
+  );
+  },
+  ),
+  _buildMenuItem(
+  icon: Icons.monetization_on_outlined,
+  title: 'Riwayat Donasi',
+  onTap: () {
+  Navigator.push(
+  context,
+  MaterialPageRoute(
+  builder: (context) => DonasiInfoPage(
+  report: {}, // Pass empty or appropriate data if needed
+  userEmail: _userEmail,
+  ),
+  ),
+  );
+  },
+  ),
+  _buildMenuItem(
+  icon: Icons.help_outline,
+  title: 'Bantuan',
+  onTap: () {},
+  ),
+  _buildMenuItem(
+  icon: Icons.info_outline,
+  title: 'Tentang Aplikasi',
+  onTap: () {},
+  ),
+  const SizedBox(height: 32),
+  =======
+  // Donation History Section
+  Align(
+  alignment: Alignment.centerLeft,
+  child: Text(
+  'Riwayat Donasi',
+  style: const TextStyle(
+  fontWeight: FontWeight.bold,
+  fontSize: 18,
+  color: Color(0xFF001F53),
+  ),
+  ),
+  ),
+  const SizedBox(height: 12),
+  _donations.isEmpty
+  ? const Text('Belum ada donasi')
+      : ListView.builder(
+  shrinkWrap: true,
+  physics: const NeverScrollableScrollPhysics(),
+  itemCount: _donations.length,
+  itemBuilder: (context, index) {
+  final donation = _donations[index];
+  final nominal = donation['nominal'] ?? 0;
+  final pesan = donation['pesan'] ?? '';
+  final createdAt = donation['created_at'] ?? '';
+  return ListTile(
+  title: Text('Rp ${nominal.toString().replaceAllMapped(RegExp(r"(\\d)(?=(\\d{3})+(?!\\d))"), (match) => "${match[1]}.")}'),
+  subtitle: Text(pesan),
+  trailing: Text(_formatDateTime(createdAt)),
+  );
+  },
+  ),
+  const SizedBox(height: 32),
+  =======
+
+  // Menu Items
+  _buildMenuItem(
+  icon: Icons.person_outline,
+  title: 'Edit Profil',
+  onTap: () async {
+  final result = await Navigator.push(
+  context,
+  MaterialPageRoute(
+  builder: (context) => const EditProfilePage(),
+  ),
+  );
+  if (result == true) {
+  _loadUserData();
+  }
+  },
+  ),
+  _buildMenuItem(
+  icon: Icons.history,
+  title: 'Riwayat Laporan',
+  onTap: () {
+  Navigator.push(
+  context,
+  MaterialPageRoute(builder: (context) => const RiwayatLaporanPage()),
+  );
+  },
+  ),
+  _buildMenuItem(
+  icon: Icons.settings_outlined,
+  title: 'Pengaturan',
+  onTap: () {},
+  ),
+  _buildMenuItem(
+  icon: Icons.help_outline,
+  title: 'Bantuan',
+  onTap: () {},
+  ),
+  _buildMenuItem(
+  icon: Icons.info_outline,
+  title: 'Tentang Aplikasi',
+  onTap: () {},
+  ),
+  const SizedBox(height: 32),
+
+  // Logout Button
+  ElevatedButton(
+  onPressed: () {
+  showDialog(
+  context: context,
+  builder: (BuildContext context) {
+  return AlertDialog(
+  title: const Text('Konfirmasi Logout'),
+  content: const Text('Apakah yakin ingin keluar dari aplikasi Lapor.in?'),
+  actions: <Widget>[
+  TextButton(
+  child: const Text('Batal'),
+  onPressed: () {
+  Navigator.of(context).pop();
+  },
+  ),
+  TextButton(
+  child: const Text('Ya'),
+  onPressed: () {
+  DatabaseHelper.instance.setCurrentUserEmail(null);
+  Navigator.of(context).pop();
+  Navigator.of(context).pushReplacementNamed('/login');
+  },
+  ),
+  ],
+  );
+  },
+  );
+  },
+  style: ElevatedButton.styleFrom(
+  backgroundColor: Colors.red,
+  shape: RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(8),
+  ),
+  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+  ),
+  child: const Text(
+  'Keluar',
+  style: TextStyle(
+  color: Colors.white,
+  fontSize: 16,
+  fontWeight: FontWeight.bold,
+  ),
+  ),
+  ),
+  ],
+  ),
+  ),
+  );
+  }
+  }

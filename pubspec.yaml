@@ -34,5 +34,9 @@ flutter:
     - assets/image_landpage1.jpg
     - assets/image_landpage2.jpg
     - assets/image_landpage3.jpg
+    - assets/Dana.png
+    - assets/Spay.png
+    - assets/BNI.png
+    - assets/Transfer.png
 
 

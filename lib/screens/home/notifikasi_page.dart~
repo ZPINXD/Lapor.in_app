@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../db/database_helper.dart';
 
 class NotifikasiPage extends StatefulWidget {
@@ -70,16 +69,6 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
     }
   }
 
-  String _formatDate(String dateStr) {
-    try {
-      final dateTime = DateTime.parse(dateStr);
-      final formatter = DateFormat('dd/MM/yyyy HH:mm');
-      return formatter.format(dateTime);
-    } catch (e) {
-      return dateStr;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,7 +135,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                       ),
                     ),
                     subtitle: Text(
-                      _formatDate(notification['created_at'] ?? ''),
+                      notification['created_at'] ?? '',
                       style: const TextStyle(color: Colors.black54),
                     ),
                   );

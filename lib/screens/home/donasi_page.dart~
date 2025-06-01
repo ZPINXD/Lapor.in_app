@@ -1,48 +1,285 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../db/database_helper.dart';
+import 'package:intl/intl.dart';
 
-class DonasiPage extends StatelessWidget {
+class DonasiPage extends StatefulWidget {
   const DonasiPage({Key? key}) : super(key: key);
+
+  @override
+  _DonasiPageState createState() => _DonasiPageState();
+}
+
+class _DonasiPageState extends State<DonasiPage> {
+  List<Map<String, dynamic>> _bencanaReports = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBencanaReports();
+  }
+
+  Future<void> _loadBencanaReports() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final dbHelper = DatabaseHelper.instance;
+
+      // Ambil kategori bencana dari database
+      final categories = await dbHelper.getAllCategories();
+      final bencanaCategory = categories.firstWhere(
+            (cat) => cat['name'].toString().toLowerCase().contains('bencana'),
+        orElse: () => {},
+      );
+
+      if (bencanaCategory.isEmpty) {
+        setState(() {
+          _bencanaReports = [];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final reports = await dbHelper.getAllReports(categoryId: bencanaCategory['id'], status: 'proses');
+      setState(() {
+        _bencanaReports = reports;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading bencana reports: $e');
+      setState(() {
+        _bencanaReports = [];
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _formatDate(String dateStr) {
+    try {
+      final dateTime = DateTime.parse(dateStr);
+      final formatter = DateFormat('dd MMM yyyy');
+      return formatter.format(dateTime);
+    } catch (e) {
+      return dateStr;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        backgroundColor: const Color(0xFF001F53),
         title: const Text(
           'Donasi',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        backgroundColor: const Color(0xFF001F53),
         elevation: 0,
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(
-              Icons.volunteer_activism,
-              size: 100,
-              color: Color(0xFFD4A24C),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Halaman Donasi',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF001F53),
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Fitur dalam pengembangan',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 16,
-              ),
-            ),
-          ],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _bencanaReports.isEmpty
+          ? const Center(
+        child: Text(
+          'Belum ada laporan bencana',
+          style: TextStyle(fontSize: 18, color: Colors.grey),
         ),
+      )
+          : ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _bencanaReports.length,
+        itemBuilder: (context, index) {
+          final report = _bencanaReports[index];
+          final reporterName = report['reporter_name'] ?? 'Anonymous';
+          final reporterImage = report['user_image_path'];
+          final date = _formatDate(report['created_at'] ?? '');
+          final title = report['title'] ?? '';
+          final description = report['description'] ?? '';
+          final location = report['city_name'] ?? '';
+          final imagePath = report['image_path'];
+
+          return Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.black, width: 2),
+                        ),
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundImage: (reporterImage != null && reporterImage.isNotEmpty)
+                              ? (reporterImage.startsWith('http') || reporterImage.startsWith('https')
+                              ? NetworkImage(reporterImage)
+                              : FileImage(File(reporterImage)) as ImageProvider)
+                              : null,
+                          child: (reporterImage == null || reporterImage.isEmpty)
+                              ? Text(
+                            reporterName.isNotEmpty ? reporterName[0].toUpperCase() : 'A',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                          )
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            reporterName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          Text(
+                            date,
+                            style: const TextStyle(
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Lokasi: $location',
+                    style: const TextStyle(
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (imagePath != null && imagePath.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: GestureDetector(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => Dialog(
+                              child: (imagePath.startsWith('http') || imagePath.startsWith('https'))
+                                  ? Image.network(
+                                imagePath,
+                                fit: BoxFit.contain,
+                              )
+                                  : Image.file(
+                                File(imagePath),
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          );
+                        },
+                        child: (imagePath.startsWith('http') || imagePath.startsWith('https'))
+                            ? Image.network(
+                          imagePath,
+                          height: 150,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 150,
+                            color: Colors.grey[300],
+                            child: const Center(child: Icon(Icons.broken_image)),
+                          ),
+                        )
+                            : Image.file(
+                          File(imagePath),
+                          height: 150,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: (report['status'] == 'selesai')
+                        ? Text(
+                      'Total Donasi: Rp 0',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    )
+                        : ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD4A24C),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DonasiInfoPage(
+                              report: report,
+                              donors: [
+                                // Mock donor data, replace with real data if available
+                                {
+                                  'name': 'Agus',
+                                  'image_path': '',
+                                  'amount': 100000,
+                                  'donated_at': DateTime.now()
+                                      .subtract(const Duration(hours: 10))
+                                      .toIso8601String(),
+                                  'message': 'Semoga membantu ya',
+                                },
+                                {
+                                  'name': 'Budi',
+                                  'image_path': '',
+                                  'amount': 200000,
+                                  'donated_at': DateTime.now()
+                                      .subtract(const Duration(hours: 14))
+                                      .toIso8601String(),
+                                  'message': 'Ini ada sedikit dari saya, semoga bermanfaat',
+                                },
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Donasi',
+                        style: TextStyle(color: Color(0xFF001F53)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
