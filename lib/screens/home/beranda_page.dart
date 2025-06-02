@@ -176,7 +176,7 @@ class _BerandaPageState extends State<BerandaPage> {
                   ),
                 ],
               ),
-              // Avatar
+              // Avatar only, removed notification icon and badge
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,

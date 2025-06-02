@@ -116,45 +116,35 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
           ],
         ),
       )
-          : Padding(
+          : ListView.separated(
         padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white, // Container putih untuk konten notifikasi
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _notifications.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final notification = _notifications[index];
-                  final title = notification['title'] ?? 'Laporan';
-                  final status = notification['status'] ?? '';
-                  final date = notification['date'] ?? '';
+        itemCount: _notifications.length,
+        separatorBuilder: (context, index) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final notification = _notifications[index];
 
-                  return ListTile(
-                    leading: const Icon(Icons.notifications, color: Color(0xFFD4A24C)),
-                    title: Text(
-                      notification['message'] ?? 'Notifikasi',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black, // Teks hitam
-                      ),
-                    ),
-                    subtitle: Text(
-                      _formatDate(notification['created_at'] ?? ''),
-                      style: const TextStyle(color: Colors.black54),
-                    ),
-                  );
-                },
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: const Icon(Icons.notifications, color: Color(0xFFD4A24C)),
+              title: Text(
+                notification['message'] ?? 'Notifikasi',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              subtitle: Text(
+                _formatDate(notification['created_at'] ?? ''),
+                style: const TextStyle(color: Colors.black54),
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'home/lapor_page.dart';
 import 'home/notifikasi_page.dart';
 import 'home/profil_page.dart';
 import '../../db/database_helper.dart';
+import '../../main.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
@@ -13,7 +14,7 @@ class MainScreen extends StatefulWidget {
   _MainScreenState createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver, RouteAware {
   int _selectedIndex = 0;
   int _unreadNotificationCount = 0;
 
@@ -28,6 +29,30 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      routeObserver.subscribe(this, ModalRoute.of(context)!);
+    });
+    _fetchUnreadNotificationCount();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _fetchUnreadNotificationCount();
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // Called when the current route is shown again after popping a route above it
     _fetchUnreadNotificationCount();
   }
 
@@ -49,16 +74,24 @@ class _MainScreenState extends State<MainScreen> {
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (index) {
+        onTap: (index) async {
           setState(() {
             _selectedIndex = index;
           });
           if (index == 3) {
-            // When navigating to notifications, reset unread count
+            // When navigating to notifications, mark all as read and reset unread count
+            final dbHelper = DatabaseHelper.instance;
+            final currentUser = await dbHelper.getCurrentUser();
+            if (currentUser != null) {
+              final userId = currentUser['id'] as int;
+              await dbHelper.markAllNotificationsAsRead(userId);
+            }
             setState(() {
               _unreadNotificationCount = 0;
             });
           }
+          // Refresh unread notification count on tab change
+          await _fetchUnreadNotificationCount();
         },
         type: BottomNavigationBarType.fixed,
         items: [

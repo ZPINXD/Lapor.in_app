@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../db/database_helper.dart';
 import '../../screens/edit_profile_page.dart';
 import '../../screens/home/riwayat_laporan.dart';
-import '../../screens/home/donasi_info_page.dart';
+import '../../screens/home/riwayat_donasi.dart';
 
 class ProfilPage extends StatefulWidget {
   const ProfilPage({Key? key}) : super(key: key);
@@ -64,7 +64,7 @@ class _ProfilPageState extends State<ProfilPage> {
         backgroundColor: const Color(0xFF001F53),
         title: const Text(
           'Profil',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white,fontWeight: FontWeight.bold),
         ),
         automaticallyImplyLeading: false,
         elevation: 0,
@@ -158,10 +158,7 @@ class _ProfilPageState extends State<ProfilPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => DonasiInfoPage(
-                      report: {}, // Pass empty or appropriate data if needed
-                      userEmail: _userEmail,
-                    ),
+                    builder: (context) => const RiwayatDonasiPage(),
                   ),
                 );
               },

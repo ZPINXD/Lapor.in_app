@@ -954,6 +954,7 @@ class _LaporPageState extends State<LaporPage> {
                   _currentStep == 3 ? 'Kirim Laporan' : 'Selanjutnya',
                   style: const TextStyle(
                     fontSize: 16,
+                    color: Color(0xFF001F53),
                     fontWeight: FontWeight.bold,
                   ),
                 ),

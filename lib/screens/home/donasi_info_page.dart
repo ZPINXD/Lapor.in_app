@@ -270,6 +270,8 @@ class _DonasiInfoPageState extends State<DonasiInfoPage> {
               );
               if (result == true) {
                 _loadDonations();
+                // Notify main screen to refresh unread notification count
+                Navigator.of(context).pop(true);
               }
             },
             style: ElevatedButton.styleFrom(

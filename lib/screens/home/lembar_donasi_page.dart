@@ -126,6 +126,17 @@ class _LembarDonasiPageState extends State<LembarDonasiPage> {
 
       await dbHelper.insertDonation(donationData);
       print('Donation saved successfully');
+
+      // Insert notification for successful donation
+      final notificationMessage = 'Berhasil donasi ke "${widget.reportTitle}" dengan nominal Rp${nominal.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+      final db = await dbHelper.database;
+      await db.insert('notifications', {
+        'user_id': userId,
+        'report_id': widget.reportId,
+        'message': notificationMessage,
+        'is_read': 0,
+        'created_at': DateTime.now().toIso8601String(),
+      });
     } catch (e) {
       print('Error saving donation: $e');
     }
@@ -141,7 +152,7 @@ class _LembarDonasiPageState extends State<LembarDonasiPage> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              Navigator.of(context).pop(true); // Close LembarDonasiPage and return true
+              Navigator.of(context).pop(true); // Close LembarDonasiPage and return true to indicate refresh needed
             },
             child: const Text('OK'),
           ),
@@ -431,6 +442,14 @@ class _LembarDonasiPageState extends State<LembarDonasiPage> {
                               fit: BoxFit.cover,
                             ),
                           ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'ATM & internet banking',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
                         ),
                       ),
                       _buildPaymentMethodButton(

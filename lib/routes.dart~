@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'screens/edit_landing_page.dart';
+import 'screens/landing_page.dart';
 import 'screens/login_page.dart';
 import 'screens/register_page.dart';
 import 'screens/main_screen.dart';
+import 'global_keys.dart';
 import 'screens/splash_screen.dart';
 import 'screens/admin_page.dart';
 import 'screens/lupapass_page.dart';
 
 final Map<String, WidgetBuilder> appRoutes = {
   '/splash': (context) => const SplashScreen(),
-  '/landing': (context) => const EditLandingPage(),
+  '/landing': (context) => const LandingPage(),
+  '/edit-landing': (context) => const EditLandingPage(),
   '/login': (context) => const LoginPage(),
   '/register': (context) => const RegisterPage(),
-  '/main': (context) => const MainScreen(), // Menggunakan MainScreen sebagai container untuk semua halaman home
+  '/main': (context) => MainScreen(key: mainScreenKey), // Menggunakan MainScreen sebagai container untuk semua halaman home
   '/admin': (context) => const AdminPage(), // Menambahkan route untuk halaman admin
   '/lupapass': (context) => const LupaPasswordPage(), // Menambahkan route untuk halaman lupa password
 };

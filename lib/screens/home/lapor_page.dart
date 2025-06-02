@@ -908,7 +908,7 @@ class _LaporPageState extends State<LaporPage> {
         backgroundColor: const Color(0xFF001F53),
         title: const Text(
           'Buat Laporan',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         leading: _currentStep > 1
             ? IconButton(
