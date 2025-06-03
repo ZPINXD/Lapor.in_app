@@ -303,7 +303,7 @@ class _RiwayatLaporanPageState extends State<RiwayatLaporanPage> {
       appBar: AppBar(
         title: const Text(
           'Riwayat Laporan',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white,fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF001F53),
         iconTheme: const IconThemeData(color: Colors.white),

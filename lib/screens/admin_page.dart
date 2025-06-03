@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'edit_laporan_admin.dart';
+import 'user_detail_page.dart';
 
 class AdminPage extends StatelessWidget {
   const AdminPage({Key? key}) : super(key: key);
@@ -142,7 +143,11 @@ class AdminPage extends StatelessWidget {
                       shadowColor: Colors.black26,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
-
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (context) => const UserDetailPage()),
+                          );
+                        },
                         splashColor: accentColor.withOpacity(0.3),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,

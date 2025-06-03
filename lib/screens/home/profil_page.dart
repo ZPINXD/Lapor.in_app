@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../db/database_helper.dart';
 import '../../screens/edit_profile_page.dart';
 import '../../screens/home/riwayat_laporan.dart';
+import '../../screens/home/donasi_info_page.dart';
 import '../../screens/home/riwayat_donasi.dart';
+import '../../screens/home/edit_pass.dart';
 
 class ProfilPage extends StatefulWidget {
   const ProfilPage({Key? key}) : super(key: key);
@@ -128,7 +130,7 @@ class _ProfilPageState extends State<ProfilPage> {
             const SizedBox(height: 32),
             _buildMenuItem(
               icon: Icons.person_outline,
-              title: 'Edit Profil',
+              title: 'Ubah Profil',
               onTap: () async {
                 final result = await Navigator.push(
                   context,
@@ -139,6 +141,18 @@ class _ProfilPageState extends State<ProfilPage> {
                 if (result == true) {
                   _loadUserData();
                 }
+              },
+            ),
+            _buildMenuItem(
+              icon: Icons.lock_outline,
+              title: 'Ubah kata sandi',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const EditPassPage(),
+                  ),
+                );
               },
             ),
             _buildMenuItem(
@@ -162,16 +176,6 @@ class _ProfilPageState extends State<ProfilPage> {
                   ),
                 );
               },
-            ),
-            _buildMenuItem(
-              icon: Icons.help_outline,
-              title: 'Bantuan',
-              onTap: () {},
-            ),
-            _buildMenuItem(
-              icon: Icons.info_outline,
-              title: 'Tentang Aplikasi',
-              onTap: () {},
             ),
             const SizedBox(height: 32),
             ElevatedButton(

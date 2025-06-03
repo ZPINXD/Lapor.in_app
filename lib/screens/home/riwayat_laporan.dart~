@@ -99,13 +99,16 @@ class _RiwayatLaporanPageState extends State<RiwayatLaporanPage> {
 
   Widget _buildStatusFilter() {
     return DropdownButton<String>(
-      hint: const Text('Filter Status'),
+      dropdownColor: const Color(0xFF001F53),
+      hint: const Text('Filter Status', style: TextStyle(color: Colors.white)),
       value: _filterStatus,
+      style: const TextStyle(color: Colors.white),
+      iconEnabledColor: Colors.white,
       items: [null, ..._statusOptions].map((status) {
         if (status == null) {
           return const DropdownMenuItem<String>(
             value: null,
-            child: Text('Semua'),
+            child: Text('Semua', style: TextStyle(color: Colors.white)),
           );
         }
         Color iconColor;
@@ -131,7 +134,7 @@ class _RiwayatLaporanPageState extends State<RiwayatLaporanPage> {
             children: [
               Icon(Icons.circle, size: 12, color: iconColor),
               const SizedBox(width: 8),
-              Text(status),
+              Text(status, style: const TextStyle(color: Colors.white)),
             ],
           ),
         );
@@ -149,6 +152,7 @@ class _RiwayatLaporanPageState extends State<RiwayatLaporanPage> {
     return TextButton(
       child: Text(
         _filterDate == null ? 'Filter Tanggal' : _filterDate!.toLocal().toString().split(' ')[0],
+        style: const TextStyle(color: Colors.white),
       ),
       onPressed: () async {
         final picked = await showDatePicker(
@@ -297,8 +301,12 @@ class _RiwayatLaporanPageState extends State<RiwayatLaporanPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Riwayat Laporan'),
+        title: const Text(
+          'Riwayat Laporan',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: const Color(0xFF001F53),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

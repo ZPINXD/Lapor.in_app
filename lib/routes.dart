@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/user_detail_page.dart';
 import 'screens/edit_landing_page.dart';
 import 'screens/landing_page.dart';
 import 'screens/login_page.dart';
