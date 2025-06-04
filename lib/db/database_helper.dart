@@ -37,6 +37,22 @@ class DatabaseHelper {
     }
   }
 
+  // Force delete database and reset initialization flag
+  Future<void> forceDeleteDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'laporin.db');
+    final file = File(path);
+    if (await file.exists()) {
+      try {
+        await file.delete();
+        _isInitialized = false;
+        _database = null;
+      } catch (e) {
+        // ignore error
+      }
+    }
+  }
+
   // Verifikasi integritas database
   Future<void> _verifyDatabaseIntegrity(Database db) async {
     try {
@@ -93,6 +109,9 @@ class DatabaseHelper {
         await db.execute('PRAGMA foreign_keys = ON');
       },
     );
+
+    // Pastikan kolom status ada di tabel users
+
     return db;
   }
 
@@ -102,7 +121,7 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE users ADD COLUMN image_path TEXT');
     }
     if (oldVersion < 3) {
-      await db.execute('''
+      await db.execute(''' 
         CREATE TABLE IF NOT EXISTS notifications (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER NOT NULL,
@@ -114,6 +133,9 @@ class DatabaseHelper {
           FOREIGN KEY (report_id) REFERENCES reports (id)
         )
       ''');
+
+      // Add status column to users table with default 'aktif'
+      await db.execute('ALTER TABLE users ADD COLUMN status TEXT DEFAULT "aktif"');
 
       try {
         await db.execute('ALTER TABLE donations ADD COLUMN name TEXT');
@@ -979,6 +1001,32 @@ class DatabaseHelper {
     }
   }
 
+  // Fungsi untuk mengupdate status user
+  Future<int> updateUserStatus(int userId, String status) async {
+    Database db = await instance.database;
+    return await db.update(
+      'users',
+      {'status': status},
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  // Fungsi untuk mendapatkan status user berdasarkan email
+  Future<String?> getUserStatusByEmail(String email) async {
+    Database db = await instance.database;
+    List<Map<String, dynamic>> results = await db.query(
+      'users',
+      columns: ['status'],
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+    if (results.isNotEmpty) {
+      return results.first['status'] as String?;
+    }
+    return null;
+  }
+
   // Get notifications by user
   Future<List<Map<String, dynamic>>> getNotificationsByUser(int userId) async {
     Database db = await instance.database;
@@ -1009,5 +1057,11 @@ class DatabaseHelper {
       [userId],
     );
     return result.first['count'] != null ? result.first['count'] as int : 0;
+  }
+
+  // Fungsi untuk mendapatkan semua user
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    Database db = await instance.database;
+    return await db.query('users', orderBy: 'name');
   }
 }

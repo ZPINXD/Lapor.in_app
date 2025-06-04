@@ -170,8 +170,33 @@ class _EditLaporanAdminPageState extends State<EditLaporanAdminPage> {
     // Ambil selectedStatus dari state _selectedStatuses
     String? selectedStatus = _selectedStatuses[report['id'] as int] ?? currentStatus;
 
+    Color borderColor;
+    switch (selectedStatus) {
+      case 'pending':
+        borderColor = Colors.grey;
+        break;
+      case 'proses':
+        borderColor = Colors.amber;
+        break;
+      case 'selesai':
+        borderColor = Colors.green;
+        break;
+      case 'dibatalkan':
+        borderColor = Colors.red;
+        break;
+      default:
+        borderColor = Colors.grey;
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: borderColor,
+          width: 2,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(

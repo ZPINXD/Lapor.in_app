@@ -44,7 +44,7 @@ class AdminPage extends StatelessWidget {
             Text(
               'Selamat datang di halaman Admin',
               style: TextStyle(
-                color: Colors.grey.shade800,
+                color: Colors.black,
                 fontSize: 18,
                 fontWeight: FontWeight.w400,
               ),

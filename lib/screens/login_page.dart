@@ -48,6 +48,30 @@ class _LoginPageState extends State<LoginPage> {
 
         if (mounted) {
           if (isValid) {
+            // Cek status user
+            String? status = await DatabaseHelper.instance.getUserStatusByEmail(email);
+            if (status == 'nonaktif') {
+              if (mounted) {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Akun Dinonaktifkan'),
+                    content: const Text('Akun Anda telah dinonaktifkan. Silakan hubungi admin.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              setState(() {
+                _isLoading = false;
+              });
+              return;
+            }
+
             // Simpan email user yang sedang login
             DatabaseHelper.instance.setCurrentUserEmail(email);
 

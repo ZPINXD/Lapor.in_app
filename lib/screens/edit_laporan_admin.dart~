@@ -217,8 +217,8 @@ class _EditLaporanAdminPageState extends State<EditLaporanAdminPage> {
                             },
                             child: InteractiveViewer(
                               child: SizedBox(
-                                width: 900,
-                                height: 900,
+                                width: 400,
+                                height: 400,
                                 child: Image.file(
                                   File(report['image_path']),
                                   fit: BoxFit.contain,
