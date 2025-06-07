@@ -44,7 +44,7 @@ class AdminPage extends StatelessWidget {
             Text(
               'Selamat datang di halaman Admin',
               style: TextStyle(
-                color: Colors.black,
+                color: Colors.grey.shade800,
                 fontSize: 18,
                 fontWeight: FontWeight.w400,
               ),
@@ -169,7 +169,6 @@ class AdminPage extends StatelessWidget {
                   ),
                   // Instansi Menu
                   GestureDetector(
-
                     child: Card(
                       color: cardBackground,
                       shape: RoundedRectangleBorder(
@@ -180,6 +179,9 @@ class AdminPage extends StatelessWidget {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
                         splashColor: accentColor.withOpacity(0.3),
+                        onTap: () {
+                          Navigator.of(context).pushNamed('/instansi');
+                        },
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

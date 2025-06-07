@@ -44,7 +44,7 @@ class _LaporPageState extends State<LaporPage> {
     try {
       final provinces = await DatabaseHelper.instance.getAllProvinces();
       final categories = await DatabaseHelper.instance.getAllCategories();
-      final agencies = await DatabaseHelper.instance.getAllAgencies();
+      final agencies = await DatabaseHelper.instance.getAllAgencies(status: 'aktif');
 
       if (mounted) {
         setState(() {
@@ -908,7 +908,7 @@ class _LaporPageState extends State<LaporPage> {
         backgroundColor: const Color(0xFF001F53),
         title: const Text(
           'Buat Laporan',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white),
         ),
         leading: _currentStep > 1
             ? IconButton(

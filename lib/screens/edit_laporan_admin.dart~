@@ -93,9 +93,9 @@ class _EditLaporanAdminPageState extends State<EditLaporanAdminPage> {
         if (status == null) {
           return DropdownMenuItem<String>(
             value: status,
-            child: Text(
+            child: const Text(
               'Semua',
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.white),
             ),
           );
         }
@@ -170,8 +170,33 @@ class _EditLaporanAdminPageState extends State<EditLaporanAdminPage> {
     // Ambil selectedStatus dari state _selectedStatuses
     String? selectedStatus = _selectedStatuses[report['id'] as int] ?? currentStatus;
 
+    Color borderColor;
+    switch (selectedStatus) {
+      case 'pending':
+        borderColor = Colors.grey;
+        break;
+      case 'proses':
+        borderColor = Colors.amber;
+        break;
+      case 'selesai':
+        borderColor = Colors.green;
+        break;
+      case 'dibatalkan':
+        borderColor = Colors.red;
+        break;
+      default:
+        borderColor = Colors.grey;
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: borderColor,
+          width: 2,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -285,25 +310,6 @@ class _EditLaporanAdminPageState extends State<EditLaporanAdminPage> {
                     }
                   },
                 ),
-                const Spacer(),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4A24C),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: () {
-                    if (selectedStatus != currentStatus) {
-                      _updateStatus(report['id'] as int, selectedStatus!);
-                    }
-                  },
-                  child: const Text(
-                    'Simpan',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
               ],
             ),
           ],
@@ -316,7 +322,8 @@ class _EditLaporanAdminPageState extends State<EditLaporanAdminPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        iconTheme: const IconThemeData(color: Colors.white), // Membuat tombol kembali berwarna putih
+        iconTheme: const IconThemeData(color: Colors.white),
+        // Membuat tombol kembali berwarna putih
         title: const Text(
           'Edit Laporan Admin',
           style: TextStyle(color: Colors.white),
@@ -359,6 +366,143 @@ class _EditLaporanAdminPageState extends State<EditLaporanAdminPage> {
               itemBuilder: (context, index) {
                 return _buildReportItem(_reports[index]);
               },
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            height: 50,
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: ElevatedButton(
+              onPressed: () async {
+                // Cek perubahan status laporan
+                Map<int, Map<String, String>> changes = {};
+                for (var report in _reports) {
+                  final reportId = report['id'] as int;
+                  final oldStatus = report['status'] ?? 'pending';
+                  final newStatus = _selectedStatuses[reportId] ?? oldStatus;
+                  if (oldStatus != newStatus) {
+                    changes[reportId] = {
+                      'title': report['title'] ?? '',
+                      'oldStatus': oldStatus,
+                      'newStatus': newStatus,
+                    };
+                  }
+                }
+
+                if (changes.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Tidak ada perubahan status'),
+                      behavior: SnackBarBehavior.floating,
+                      margin: EdgeInsets.only(bottom: 80, left: 20, right: 20),
+                    ),
+                  );
+                  return;
+                }
+
+                // Tampilkan dialog konfirmasi perubahan
+                bool? confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('Konfirmasi Perubahan Status'),
+                      content: SizedBox(
+                        width: double.maxFinite,
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: changes.entries.map((entry) {
+                            final change = entry.value;
+                            return ListTile(
+                              title: Text(change['title'] ?? ''),
+                              subtitle: RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(color: Colors.black),
+                                  children: [
+                                    const TextSpan(text: 'Status: '),
+                                    TextSpan(
+                                      text: change['oldStatus'],
+                                      style: TextStyle(
+                                        color: change['oldStatus'] == 'pending'
+                                            ? Colors.grey
+                                            : change['oldStatus'] == 'proses'
+                                            ? Colors.amber
+                                            : change['oldStatus'] == 'selesai'
+                                            ? Colors.green
+                                            : change['oldStatus'] == 'dibatalkan'
+                                            ? Colors.red
+                                            : Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const TextSpan(text: ' → '),
+                                    TextSpan(
+                                      text: change['newStatus'],
+                                      style: TextStyle(
+                                        color: change['newStatus'] == 'pending'
+                                            ? Colors.grey
+                                            : change['newStatus'] == 'proses'
+                                            ? Colors.amber
+                                            : change['newStatus'] == 'selesai'
+                                            ? Colors.green
+                                            : change['newStatus'] == 'dibatalkan'
+                                            ? Colors.red
+                                            : Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('Batal', style: TextStyle(color: Colors.black)),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: Colors.black,
+                          ),
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('Simpan'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (confirm == true) {
+                  // Simpan perubahan ke database
+                  for (var entry in changes.entries) {
+                    final reportId = entry.key;
+                    final newStatus = entry.value['newStatus']!;
+                    await DatabaseHelper.instance.updateReportStatus(reportId, newStatus);
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Perubahan berhasil disimpan')),
+                  );
+                  // Reload data agar tampilan update
+                  await _loadReports();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE2AE45),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text(
+                'Simpan',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],

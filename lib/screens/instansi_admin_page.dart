@@ -1,0 +1,611 @@
+import 'package:flutter/material.dart';
+import '../db/database_helper.dart';
+
+class InstansiAdminPage extends StatefulWidget {
+  const InstansiAdminPage({Key? key}) : super(key: key);
+
+  @override
+  _InstansiAdminPageState createState() => _InstansiAdminPageState();
+}
+
+class _InstansiAdminPageState extends State<InstansiAdminPage> {
+  List<Map<String, dynamic>> _agencies = [];
+  bool _isLoading = true;
+
+  Map<int, String> _selectedStatuses = {};
+  Map<int, Map<String, String>> _editedData = {};
+
+  String? _filterStatus;
+  DateTime? _filterDate;
+  String _sortOrder = 'asc';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAgencies();
+  }
+
+
+
+  Future<void> _loadAgencies() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final agencies = await DatabaseHelper.instance.getAllAgencies(
+        status: _filterStatus,
+        date: _filterDate,
+        sortOrder: _sortOrder,
+      );
+      setState(() {
+        _agencies = agencies;
+        _selectedStatuses = {
+          for (var agency in agencies) agency['id'] as int: agency['status'] ?? 'aktif'
+        };
+        _editedData = {
+          for (var agency in agencies)
+            agency['id'] as int: {
+              'name': agency['name'] ?? '',
+              'contact': agency['contact'] ?? '',
+              'phone': agency['phone'] ?? '',
+            }
+        };
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data instansi: $e')),
+      );
+    }
+  }
+
+  void _showEditDialog(int id) {
+    final nameController = TextEditingController(text: _editedData[id]?['name']);
+    final contactController = TextEditingController(text: _editedData[id]?['contact']);
+    // Hapus phone controller dan penggunaan phone
+    String status = _selectedStatuses[id] ?? 'aktif';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Edit Instansi'),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Nama'),
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                    TextField(
+                      controller: contactController,
+                      decoration: const InputDecoration(labelText: 'Kontak'),
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                    // Hapus TextField untuk phone
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text('Status: '),
+                        DropdownButton<String>(
+                          value: status,
+                          dropdownColor: Colors.white,
+                          style: TextStyle(
+                            color: status == 'aktif' ? Colors.green : Colors.red,
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'aktif',
+                              child: Text('Aktif', style: TextStyle(color: Colors.green)),
+                            ),
+                            DropdownMenuItem(
+                              value: 'nonaktif',
+                              child: Text('Nonaktif', style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setStateDialog(() {
+                                status = value;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    // Siapkan data perubahan
+                    final oldData = {
+                      'name': _editedData[id]?['name'] ?? '',
+                      'contact': _editedData[id]?['contact'] ?? '',
+                      'phone': _editedData[id]?['phone'] ?? '',
+                      'status': _selectedStatuses[id] ?? 'aktif',
+                    };
+                    final newData = {
+                      'name': nameController.text,
+                      'contact': contactController.text,
+
+                      'status': status,
+                    };
+
+                    // Cek perubahan
+                    Map<String, String> changes = {};
+                    newData.forEach((key, value) {
+                      if (oldData[key] != value) {
+                        changes[key] = value;
+                      }
+                    });
+
+                    if (changes.isEmpty) {
+                      // Tidak ada perubahan, langsung tutup dialog edit
+                      Navigator.of(context).pop();
+                      return;
+                    }
+
+                    // Tampilkan dialog konfirmasi perubahan
+                    bool? confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          title: const Text('Konfirmasi Perubahan'),
+                          content: SizedBox(
+                            width: double.maxFinite,
+                            child: ListView(
+                              shrinkWrap: true,
+                              children: changes.entries.map((entry) {
+                                final key = entry.key;
+                                final newValue = entry.value;
+                                final oldValue = oldData[key] ?? '';
+                                return ListTile(
+                                  title: Text('$key: $oldValue → $newValue'),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('Batal', style: TextStyle(color: Colors.black)),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.black,
+                              ),
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text('Simpan'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    if (confirm == true) {
+                      Navigator.of(context).pop();
+                      try {
+                        int result = await DatabaseHelper.instance.updateAgency(id, {
+                          'name': nameController.text,
+                          'contact': contactController.text,
+
+                          'status': status,
+                        });
+                        if (result > 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Edit instansi berhasil disimpan')),
+                          );
+                          await _loadAgencies();
+                          setState(() {
+                            _editedData[id] = {
+                              'name': nameController.text,
+                              'contact': contactController.text,
+
+                            };
+                            _selectedStatuses[id] = status;
+                          });
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Gagal menyimpan edit instansi')),
+                          );
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error saat menyimpan: $e')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Simpan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAddDialog() {
+    final nameController = TextEditingController();
+    final contactController = TextEditingController();
+    // Hapus phone controller dan penggunaan phone
+    String status = 'aktif';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Tambah Instansi'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Nama'),
+                ),
+                TextField(
+                  controller: contactController,
+                  decoration: const InputDecoration(labelText: 'Kontak'),
+                ),
+                // Hapus TextField untuk phone
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Status: '),
+                    DropdownButton<String>(
+                      value: status,
+                      items: const [
+                        DropdownMenuItem(value: 'aktif', child: Text('Aktif')),
+                        DropdownMenuItem(value: 'nonaktif', child: Text('Nonaktif')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            status = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nama tidak boleh kosong')),
+                  );
+                  return;
+                }
+                await DatabaseHelper.instance.insertAgencyData({
+                  'name': nameController.text.trim(),
+                  'contact': contactController.text.trim(),
+                  'status': status,
+                });
+                Navigator.of(context).pop();
+                await _loadAgencies();
+              },
+              child: const Text('Tambah'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _saveChanges() async {
+    Map<int, Map<String, String>> changes = {};
+    for (var agency in _agencies) {
+      final id = agency['id'] as int;
+      final oldName = agency['name'] ?? '';
+      final oldContact = agency['contact'] ?? '';
+      final oldPhone = agency['phone'] ?? '';
+      final oldStatus = agency['status'] ?? 'aktif';
+
+      final newName = _editedData[id]?['name'] ?? oldName;
+      final newContact = _editedData[id]?['contact'] ?? oldContact;
+      final newPhone = _editedData[id]?['phone'] ?? oldPhone;
+      final newStatus = _selectedStatuses[id] ?? oldStatus;
+
+      if (oldName != newName || oldContact != newContact || oldPhone != newPhone || oldStatus != newStatus) {
+        changes[id] = {
+          'name': newName,
+          'contact': newContact,
+          'phone': newPhone,
+          'status': newStatus,
+        };
+      }
+    }
+
+    if (changes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak ada perubahan'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(bottom: 80, left: 20, right: 20),
+        ),
+      );
+      return;
+    }
+
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Konfirmasi Perubahan'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: changes.entries.map((entry) {
+                final id = entry.key;
+                final change = entry.value;
+                final oldAgency = _agencies.firstWhere((a) => a['id'] == id);
+                return ListTile(
+                  title: Text(change['name'] ?? ''),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Nama: ${oldAgency['name']} → ${change['name']}'),
+                      Text('Kontak: ${oldAgency['contact']} → ${change['contact']}'),
+                      Text('No. Telp: ${oldAgency['phone']} → ${change['phone']}'),
+                      Text('Status: ${oldAgency['status']} → ${change['status']}'),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Batal', style: TextStyle(color: Colors.black)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Simpan'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      for (var entry in changes.entries) {
+        await DatabaseHelper.instance.updateAgency(entry.key, entry.value);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Perubahan berhasil disimpan')),
+      );
+      await _loadAgencies();
+    }
+  }
+
+  Widget _buildStatusFilter() {
+    return DropdownButton<String>(
+      value: _filterStatus,
+      hint: const Text('Filter Status', style: TextStyle(color: Colors.white)),
+      dropdownColor: const Color(0xFF001F53),
+      items: [
+        DropdownMenuItem(
+          value: 'aktif',
+          child: Text('Aktif', style: TextStyle(color: Colors.green)),
+        ),
+        DropdownMenuItem(
+          value: 'nonaktif',
+          child: Text('Nonaktif', style: TextStyle(color: Colors.red)),
+        ),
+      ],
+      onChanged: (value) {
+        setState(() {
+          _filterStatus = value;
+        });
+        _loadAgencies();
+      },
+    );
+  }
+
+  Widget _buildDateFilter() {
+    return DropdownButton<String>(
+      value: _sortOrder,
+      dropdownColor: const Color(0xFF001F53),
+      items: const [
+        DropdownMenuItem(value: 'asc', child: Text('Ascending', style: TextStyle(color: Colors.white))),
+        DropdownMenuItem(value: 'desc', child: Text('Descending', style: TextStyle(color: Colors.white))),
+      ],
+      onChanged: (value) {
+        if (value != null) {
+          setState(() {
+            _sortOrder = value;
+          });
+          _loadAgencies();
+        }
+      },
+      hint: const Text('Urutkan', style: TextStyle(color: Colors.white)),
+    );
+  }
+
+  Future<void> _loadReports() async {
+    await _loadAgencies();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Manajemen Instansi', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF001F53),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      backgroundColor: const Color(0xFF001F53),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Expanded(child: _buildStatusFilter()),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(child: _buildDateFilter()),
+                      IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.white),
+                        tooltip: 'Reset Filter',
+                        onPressed: () {
+                          setState(() {
+                            _sortOrder = 'asc';
+                            _filterStatus = null;
+                            _filterDate = null;
+                          });
+                          _loadAgencies();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                // Tombol tambah instansi di atas dihilangkan
+                const SizedBox.shrink(),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _agencies.isEmpty
+                ? const Center(child: Text('Tidak ada instansi', style: TextStyle(color: Colors.white)))
+                : ListView.builder(
+              itemCount: _agencies.length,
+              itemBuilder: (context, index) {
+                final agency = _agencies[index];
+                final id = agency['id'] as int;
+                final name = agency['name'] ?? '';
+                final contact = agency['contact'] ?? '-';
+                final phone = agency['phone'] ?? '-';
+                final status = _selectedStatuses[id] ?? 'aktif';
+
+                return Card(
+                  color: Colors.white,
+                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: status == 'aktif' ? Colors.green : Colors.red,
+                      width: 2,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Nama: $name', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
+                        const SizedBox(height: 8),
+                        Text('Kontak: $contact', style: const TextStyle(color: Colors.black)),
+                        const SizedBox(height: 8),
+                        // Hapus tampilan No. Telp
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Text('Status', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  status == 'aktif' ? 'Aktif' : 'Nonaktif',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: status == 'aktif' ? Colors.green : Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                _showEditDialog(id);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFE2AE45),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              ),
+                              child: const Text(
+                                'Edit',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          // Menghapus tombol simpan di bawah dan menggantinya dengan tombol tambah instansi
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _showAddDialog,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE2AE45),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text(
+                  'Tambah Instansi',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

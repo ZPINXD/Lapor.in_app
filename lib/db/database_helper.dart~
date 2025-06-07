@@ -83,6 +83,20 @@ class DatabaseHelper {
         await db.execute('PRAGMA foreign_keys = ON');
       },
     );
+
+    // Pastikan kolom status ada di tabel users
+    bool hasStatusColumn = await _columnExists(db, 'users', 'status');
+    if (!hasStatusColumn) {
+      try {
+        await db.execute('ALTER TABLE users ADD COLUMN status TEXT DEFAULT "aktif"');
+        print('Kolom status berhasil ditambahkan secara manual.');
+      } catch (e) {
+        print('Gagal menambahkan kolom status secara manual: $e');
+      }
+    } else {
+      print('Kolom status sudah ada di tabel users.');
+    }
+
     return db;
   }
 

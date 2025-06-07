@@ -198,7 +198,13 @@ class _RiwayatLaporanPageState extends State<RiwayatLaporanPage> {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: statusColor,
+          width: 2,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -303,7 +309,7 @@ class _RiwayatLaporanPageState extends State<RiwayatLaporanPage> {
       appBar: AppBar(
         title: const Text(
           'Riwayat Laporan',
-          style: TextStyle(color: Colors.white,fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white),
         ),
         backgroundColor: const Color(0xFF001F53),
         iconTheme: const IconThemeData(color: Colors.white),

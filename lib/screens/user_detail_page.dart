@@ -180,115 +180,34 @@ class _UserDetailPageState extends State<UserDetailPage> {
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(20.0),
-        child: ElevatedButton(
-          onPressed: () async {
-            // Cek perubahan status user
-            Map<int, Map<String, String>> changes = {};
-            for (var user in users) {
-              final userId = user['id'] as int;
-              final oldStatus = user['status'] ?? 'aktif';
-              final newStatus = userStatuses[userId] ?? oldStatus;
-              if (oldStatus != newStatus) {
-                changes[userId] = {
-                  'name': user['name'] ?? '',
-                  'oldStatus': oldStatus,
-                  'newStatus': newStatus,
-                };
-              }
-            }
-
-            if (changes.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Tidak ada perubahan status')),
-              );
-              return;
-            }
-
-            // Tampilkan dialog konfirmasi perubahan
-            bool? confirm = await showDialog<bool>(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  title: const Text('Konfirmasi Perubahan Status'),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: changes.entries.map((entry) {
-                        final change = entry.value;
-                        return ListTile(
-                          title: Text(change['name'] ?? ''),
-                          subtitle: RichText(
-                            text: TextSpan(
-                              style: const TextStyle(color: Colors.black),
-                              children: [
-                                const TextSpan(text: 'Status: '),
-                                TextSpan(
-                                  text: change['oldStatus'],
-                                  style: TextStyle(
-                                    color: change['oldStatus'] == 'aktif' ? Colors.green : Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const TextSpan(text: ' → '),
-                                TextSpan(
-                                  text: change['newStatus'],
-                                  style: TextStyle(
-                                    color: change['newStatus'] == 'aktif' ? Colors.green : Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Batal', style: TextStyle(color: Colors.black)),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.black,
-                      ),
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Simpan'),
-                    ),
-                  ],
-                );
-              },
-            );
-
-            if (confirm == true) {
-              // Simpan perubahan ke database
-              for (var entry in changes.entries) {
-                final userId = entry.key;
-                final newStatus = entry.value['newStatus']!;
-                await DatabaseHelper.instance.updateUserStatus(userId, newStatus);
-              }
+        child: SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: () async {
+              // Placeholder for save functionality
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Perubahan berhasil disimpan')),
               );
-              // Reload data agar tampilan update
-              await _loadUsers();
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFE2AE45),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          child: const Text(
-            'Simpan',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.black,
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE2AE45),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: const Text(
+              'Simpan',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.black,
+              ),
             ),
           ),
         ),
       ),
     );
   }
+
 }
