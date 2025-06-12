@@ -400,7 +400,7 @@ class _EditPassPageState extends State<EditPassPage> {
           },
         ),
         title: const Text(
-          'Edit Password',
+          'Ubah kata sandi',
           style: TextStyle(color: Colors.white),
         ),
         centerTitle: false,

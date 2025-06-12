@@ -250,7 +250,7 @@ class _InstansiAdminPageState extends State<InstansiAdminPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('+ Tambah Instansi'),
+          title: const Text('➕Tambah Instansi'),
           content: SingleChildScrollView(
             child: Column(
               children: [

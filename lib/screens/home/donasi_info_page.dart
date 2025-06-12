@@ -200,9 +200,7 @@ class _DonasiInfoPageState extends State<DonasiInfoPage> {
               ),
             ),
             const SizedBox(height: 8),
-            donors.isEmpty
-                ? const Text('Belum ada donasi')
-                : ListView.builder(
+                 ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: donors.length,

@@ -196,7 +196,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 controller: _nameController,
                 style: const TextStyle(color: Colors.black),
                 decoration: const InputDecoration(
-                  labelText: 'Nama Lengkap',
+                  labelText: 'Nama',
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {

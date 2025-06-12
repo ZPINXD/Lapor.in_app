@@ -215,7 +215,7 @@ class _RegisterPageState extends State<RegisterPage> {
         TextFormField(
           controller: _nameController,
           style: const TextStyle(color: Colors.black),
-          decoration: _getInputDecoration('Nama Lengkap', 'Masukkan nama lengkap...'),
+          decoration: _getInputDecoration('Nama', 'Masukkan nama anda...'),
           textInputAction: TextInputAction.next,
           keyboardType: TextInputType.name,
         ),

@@ -358,7 +358,7 @@ class _BerandaPageState extends State<BerandaPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Statistik Laporan Minggu Ini',
+            'Statistik Laporan',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,

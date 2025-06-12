@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../db/database_helper.dart';
 import 'package:intl/intl.dart';
-import '../../screens/home/notifikasi_page.dart';
 
 class BerandaPage extends StatefulWidget {
   const BerandaPage({Key? key}) : super(key: key);
@@ -10,8 +9,6 @@ class BerandaPage extends StatefulWidget {
   @override
   _BerandaPageState createState() => _BerandaPageState();
 }
-
-
 
 class _BerandaPageState extends State<BerandaPage> {
   final List<Map<String, dynamic>> _statusColors = [
@@ -26,15 +23,12 @@ class _BerandaPageState extends State<BerandaPage> {
   Map<String, dynamic>? _currentUser;
   List<Map<DateTime, int>> _timelineData = [];
 
-  int _unreadNotificationCount = 0;
-
   bool _hasShownSuccessMessage = false;
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
-    _loadUnreadNotificationCount();
   }
 
   @override
@@ -56,17 +50,6 @@ class _BerandaPageState extends State<BerandaPage> {
           Navigator.of(context).pushReplacementNamed('/main');
         });
       }
-    }
-  }
-
-  Future<void> _loadUnreadNotificationCount() async {
-    if (_currentUser == null) return;
-    final userId = _currentUser!['id'] as int;
-    final count = await DatabaseHelper.instance.getUnreadNotificationCount(userId);
-    if (mounted) {
-      setState(() {
-        _unreadNotificationCount = count;
-      });
     }
   }
 
@@ -106,9 +89,6 @@ class _BerandaPageState extends State<BerandaPage> {
           _isLoading = false;
         });
       }
-
-      // Load unread notification count after user is loaded
-      await _loadUnreadNotificationCount();
     } catch (e) {
       print('Error loading initial data: $e');
       if (mounted) {
@@ -196,71 +176,26 @@ class _BerandaPageState extends State<BerandaPage> {
                   ),
                 ],
               ),
-              // Avatar and Notification Icon with Badge
-              Row(
-                children: [
-                  Stack(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.notifications, color: Colors.white, size: 28),
-                        onPressed: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const NotifikasiPage()),
-                          );
-                          // Refresh unread notification count after returning
-                          _loadUnreadNotificationCount();
-                        },
-                      ),
-                      if (_unreadNotificationCount > 0)
-                        Positioned(
-                          right: 6,
-                          top: 6,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 18,
-                              minHeight: 18,
-                            ),
-                            child: Text(
-                              '$_unreadNotificationCount',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                    ),
-                    child: CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.white,
-                      backgroundImage: _currentUser?['image_path'] != null
-                          ? FileImage(File(_currentUser!['image_path'])) as ImageProvider
-                          : null,
-                      child: _currentUser?['image_path'] == null
-                          ? Icon(
-                        Icons.person,
-                        color: Colors.grey[600],
-                        size: 32,
-                      )
-                          : null,
-                    ),
-                  ),
-                ],
+              // Avatar only, removed notification icon and badge
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                ),
+                child: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.white,
+                  backgroundImage: _currentUser?['image_path'] != null
+                      ? FileImage(File(_currentUser!['image_path'])) as ImageProvider
+                      : null,
+                  child: _currentUser?['image_path'] == null
+                      ? Icon(
+                    Icons.person,
+                    color: Colors.grey[600],
+                    size: 32,
+                  )
+                      : null,
+                ),
               ),
             ],
           ),

@@ -310,6 +310,8 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  final List<TextEditingController> _otpControllers = List.generate(4, (index) => TextEditingController());
+
   Widget _buildVerificationStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -333,17 +335,17 @@ class _RegisterPageState extends State<RegisterPage> {
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(
-            4,
-                (index) => SizedBox(
+          children: List.generate(4, (index) {
+            return SizedBox(
               width: 50,
               child: TextFormField(
-                style: const TextStyle(color: Colors.black),
+                controller: _otpControllers[index],
+                style: const TextStyle(color: Colors.black, fontSize: 24),
                 textAlign: TextAlign.center,
                 keyboardType: TextInputType.number,
                 maxLength: 1,
                 decoration: InputDecoration(
-                  counterText: '',
+                  counterText: "",
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -358,14 +360,25 @@ class _RegisterPageState extends State<RegisterPage> {
                     borderSide: const BorderSide(color: Color(0xFFD4A24C)),
                   ),
                 ),
+                onChanged: (value) {
+                  if (value.length == 1 && index < 3) {
+                    FocusScope.of(context).nextFocus();
+                  }
+                },
               ),
-            ),
-          ),
+            );
+          }),
         ),
         const SizedBox(height: 24),
         TextButton(
           onPressed: () {
             // TODO: Implement resend verification code
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Kode verifikasi telah dikirim ulang'),
+                backgroundColor: Color(0xFFD4A24C),
+              ),
+            );
           },
           child: const Text(
             'Kirim ulang kode?',

@@ -200,9 +200,8 @@ class _DonasiInfoPageState extends State<DonasiInfoPage> {
               ),
             ),
             const SizedBox(height: 8),
-            donors.isEmpty
-                ? const Text('Belum ada donasi')
-                : ListView.builder(
+
+                 ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: donors.length,
@@ -270,6 +269,8 @@ class _DonasiInfoPageState extends State<DonasiInfoPage> {
               );
               if (result == true) {
                 _loadDonations();
+                // Notify main screen to refresh unread notification count
+                Navigator.of(context).pop(true);
               }
             },
             style: ElevatedButton.styleFrom(

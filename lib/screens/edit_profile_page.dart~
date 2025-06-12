@@ -147,7 +147,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         backgroundColor: const Color(0xFF001F53),
         title: const Text(
           'Ganti Profil',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white,fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
