@@ -49,7 +49,8 @@ lib/
 ```
 
 ## 📸 Screenshot
-*(Tambahkan beberapa screenshot dari aplikasi jika ada)*
+*Landing Page*
+![image](https://github.com/user-attachments/assets/69356753-f6d1-42d7-98af-93588ee067ee)
 
 
 ## 📄 Lisensi
