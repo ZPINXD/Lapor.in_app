@@ -50,7 +50,13 @@ lib/
 
 ## 📸 Screenshot
 *Landing Page*
+
 ![image](https://github.com/user-attachments/assets/69356753-f6d1-42d7-98af-93588ee067ee)
+*Halaman Login*
+
+
+![image](https://github.com/user-attachments/assets/98f30493-0071-4c38-a247-cbb45397d165)
+
 
 
 ## 📄 Lisensi
