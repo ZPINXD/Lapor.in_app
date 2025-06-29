@@ -10,8 +10,8 @@ Proyek ini dikembangkan sebagai bagian dari latihan mobile development menggunak
 
 - 📄 Formulir pelaporan (judul, deskripsi, dll)
 - 🖼️ Upload foto pendukung laporan
-- 📍 Deteksi lokasi pengguna (jika tersedia)
 - 🕑 Riwayat laporan pengguna
+- 💰 Melakukan donasi untuk laporan yang berkategori bencana alam
 - 🔐 Login dan registrasi pengguna
 - 🔔 Notifikasi status laporan (opsional jika ada backend)
 - 🤵 Admin *admin@gmail.com pass = admin123 (untuk masuk kebagian admin)
